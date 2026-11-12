@@ -1,0 +1,13 @@
+resume.txt
+profile.md
+candidate_summary.md
+build_log.txt
+seen_vacancies.txt
+*.bak
+failed_responses/
+debug/
+app.log
+*.log
+appsettings.json
+bin/
+obj/
