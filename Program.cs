@@ -169,10 +169,10 @@ public class Program
             // Читаем пороги из конфигурации с значениями по умолчанию.
             int minVacanciesForAlert = ReadIntConfig(config, "HhParser:Thresholds:MinVacanciesForAlert", 5);
             int requirementsPercent = ReadIntConfig(config, "HhParser:Thresholds:RequirementsPercent", 80);
-            int responsibilitiesPercent = ReadIntConfig(config, "HhParser:Thresholds:ResponsibilitiesPercent", 50);
-            int keySkillsPercent = ReadIntConfig(config, "HhParser:Thresholds:KeySkillsPercent", 30);
-            int conditionsPercent = ReadIntConfig(config, "HhParser:Thresholds:ConditionsPercent", 40);
-            int descriptionFallbackMaxPercent = ReadIntConfig(config, "HhParser:Thresholds:DescriptionFallbackMaxPercent", 50);
+            int descriptionPercent = ReadIntConfig(config, "HhParser:Thresholds:DescriptionPercent", 80);
+            int responsibilitiesPercent = ReadIntConfig(config, "HhParser:Thresholds:ResponsibilitiesPercent", 10);
+            int keySkillsPercent = ReadIntConfig(config, "HhParser:Thresholds:KeySkillsPercent", 10);
+            int conditionsPercent = ReadIntConfig(config, "HhParser:Thresholds:ConditionsPercent", 10);
 
             var warnings = new List<string>();
 
@@ -182,6 +182,7 @@ public class Program
             }
             else if (summary.Total >= minVacanciesForAlert)
             {
+                // Обязательные поля: Requirements, Description
                 int reqPercent = summary.Percent(summary.WithRequirements);
                 if (reqPercent < requirementsPercent)
                 {
@@ -190,8 +191,18 @@ public class Program
                     Logger.Log($"[HhParser] ВНИМАНИЕ: Requirements заполнено в {reqPercent}% вакансий (порог {requirementsPercent}%). Возможна смена вёрстки hh.ru.");
                 }
 
+                int fallbackPercent = summary.Percent(summary.DescriptionFallback);
+                int descriptionPresentPercent = 100 - fallbackPercent;
+                if (descriptionPresentPercent < descriptionPercent)
+                {
+                    var w = $"Description={descriptionPresentPercent}% (порог {descriptionPercent}%), fallback={fallbackPercent}%";
+                    warnings.Add(w);
+                    Logger.Log($"[HhParser] ВНИМАНИЕ: Description загружено в {descriptionPresentPercent}% вакансий (порог {descriptionPercent}%), descriptionFallback=True: {fallbackPercent}%. Возможна смена вёрстки hh.ru.");
+                }
+
+                // Вариативные поля: Responsibilities, KeySkills, Conditions
                 int respPercent = summary.Percent(summary.WithResponsibilities);
-                if (respPercent < responsibilitiesPercent)
+                if (respPercent <= responsibilitiesPercent)
                 {
                     var w = $"Responsibilities={respPercent}% (порог {responsibilitiesPercent}%)";
                     warnings.Add(w);
@@ -199,7 +210,7 @@ public class Program
                 }
 
                 int skillsPercent = summary.Percent(summary.WithKeySkills);
-                if (skillsPercent < keySkillsPercent)
+                if (skillsPercent <= keySkillsPercent)
                 {
                     var w = $"KeySkills={skillsPercent}% (порог {keySkillsPercent}%)";
                     warnings.Add(w);
@@ -207,19 +218,11 @@ public class Program
                 }
 
                 int condPercent = summary.Percent(summary.WithConditions);
-                if (condPercent < conditionsPercent)
+                if (condPercent <= conditionsPercent)
                 {
                     var w = $"Conditions={condPercent}% (порог {conditionsPercent}%)";
                     warnings.Add(w);
                     Logger.Log($"[HhParser] ВНИМАНИЕ: Conditions заполнено в {condPercent}% вакансий (порог {conditionsPercent}%). Возможна смена вёрстки hh.ru.");
-                }
-
-                int fallbackPercent = summary.Percent(summary.DescriptionFallback);
-                if (fallbackPercent > descriptionFallbackMaxPercent)
-                {
-                    var w = $"descriptionFallback=True={fallbackPercent}% (порог максимум {descriptionFallbackMaxPercent}%)";
-                    warnings.Add(w);
-                    Logger.Log($"[HhParser] ВНИМАНИЕ: descriptionFallback=True в {fallbackPercent}% вакансий (порог максимум {descriptionFallbackMaxPercent}%). Возможна смена вёрстки hh.ru.");
                 }
             }
 
@@ -257,15 +260,10 @@ public class Program
 
                     // Политика отправки (Prompt 5.9):
                     // score >= 7 — сразу в Telegram
-                    // 5–6 — в дайджест «на подумать» (лог только)
-                    // <= 4 — только в лог
-                    if (result.Score >= 7)
+                    if (result.Score >= 3)
                     {
-                        await notifier.SendVacancyAsync(vacancy, result);
-                    }
-                    else if (result.Score >= 5)
-                    {
-                        Logger.Log($"[Дайджест] {vacancy.Title} | {vacancy.Link} | оценка {result.Score}/10 — на подумать.");
+                        var priorityLabel = result.Score >= 7 ? "🔥 откликаться" : "💭 на подумать";
+                        await notifier.SendVacancyAsync(vacancy, result, priorityLabel);
                     }
 
                     seenVacancies.Add(vacancy.Link);

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AiRecruiter.Analyzers;
 using AiRecruiter.Models;
@@ -59,8 +60,14 @@ public class TelegramNotifier
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
 
-    public async Task<bool> SendVacancyAsync(Vacancy vacancy, AnalysisResult result)
+    public async Task<bool> SendVacancyAsync(Vacancy vacancy, AnalysisResult result, string priorityLabel)
     {
+        if (IsInternshipTitle(vacancy.Title))
+        {
+            Logger.Log($"[Telegram] Пропуск: стажировка | {vacancy.Title} | {vacancy.Link}");
+            return false;
+        }
+
         var coverLetter = result.CoverLetter.Replace("\\n", "\n");
 
         bool hasCoverLetter = !string.IsNullOrWhiteSpace(result.CoverLetter)
@@ -71,7 +78,7 @@ public class TelegramNotifier
             : string.Empty;
 
         string message = $"""
-            🔥 Найдена подходящая вакансия!
+            {(string.IsNullOrEmpty(priorityLabel) ? "Найдена вакансия!" : priorityLabel)}
 
             Оценка: {result.Score}/10
             Комментарий: {WebUtility.HtmlEncode(result.Comment)}
@@ -83,7 +90,7 @@ public class TelegramNotifier
             Ссылка: {vacancy.Link}{coverLetterBlock}
             """;
 
-        Logger.Log($"[Telegram] Отправка: score={result.Score} | {vacancy.Title} | {vacancy.Link} | письмо={coverLetter.Length}");
+        Logger.Log($"[Telegram] Отправка: score={result.Score} | label={priorityLabel} | {vacancy.Title} | {vacancy.Link} | письмо={coverLetter.Length}");
 
         var payload = new
         {
@@ -158,5 +165,15 @@ public class TelegramNotifier
             Logger.Log($"[Telegram] ALERT ИСКЛЮЧЕНИЕ: {ex.Message}");
             return false;
         }
+    }
+
+    private static bool IsInternshipTitle(string title)
+    {
+        var lower = title.ToLowerInvariant();
+        if (lower.Contains("стажер") || lower.Contains("стажёр") || lower.Contains("стажиров"))
+        {
+            return true;
+        }
+        return Regex.IsMatch(lower, @"\b(intern|internship|trainee)\b");
     }
 }

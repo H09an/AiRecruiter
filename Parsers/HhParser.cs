@@ -838,7 +838,7 @@ public class HhParser
                 if (requirements.Length > 0) requirements.Append('\n');
                 requirements.Append(sectionText);
             }
-            else if (heading.StartsWith("обязанности") || heading.StartsWith("что предстоит делать") || heading.StartsWith("вам предстоит") || heading.StartsWith("задачи") || heading.StartsWith("чем предстоит заниматься") || heading.StartsWith("что делать") || heading.StartsWith("что нужно делать") || heading.StartsWith("обязанности и задачи"))
+            else if (heading.StartsWith("обязанности") || heading.StartsWith("что предстоит делать") || heading.StartsWith("вам предстоит") || heading.StartsWith("задачи") || heading.StartsWith("чем предстоит заниматься") || heading.StartsWith("что делать") || heading.StartsWith("что нужно делать") || heading.StartsWith("что надо делать") || heading.StartsWith("обязанности и задачи"))
             {
                 if (responsibilities.Length > 0) responsibilities.Append('\n');
                 responsibilities.Append(sectionText);
@@ -893,7 +893,7 @@ public class HhParser
             {
                 category = "requirements";
             }
-            else if (Matches(normalized, "обязанности", "что предстоит делать", "вам предстоит", "задачи", "чем предстоит заниматься", "что делать", "что нужно делать", "обязанности и задачи"))
+            else if (Matches(normalized, "обязанности", "что предстоит делать", "вам предстоит", "задачи", "чем предстоит заниматься", "что делать", "что нужно делать", "что надо делать", "обязанности и задачи"))
             {
                 category = "responsibilities";
             }
@@ -1079,7 +1079,7 @@ public class HhParser
         headingText = text;
         var normalized = text.Trim().TrimEnd(':').Trim().ToLowerInvariant();
 
-        if (Matches(normalized, "обязанности", "что предстоит делать", "вам предстоит", "задачи", "чем предстоит заниматься", "что делать", "что нужно делать", "обязанности и задачи"))
+        if (Matches(normalized, "обязанности", "что предстоит делать", "вам предстоит", "задачи", "чем предстоит заниматься", "что делать", "что нужно делать", "что надо делать", "обязанности и задачи"))
         {
             category = "responsibilities";
             return true;
@@ -1114,7 +1114,7 @@ public class HhParser
             "будет плюсом", "желательно", "преимуществом",
             // Responsibilities aliases
             "обязанности", "что предстоит делать", "вам предстоит", "задачи", "чем предстоит заниматься",
-            "что делать", "что нужно делать", "обязанности и задачи",
+            "что делать", "что нужно делать", "что надо делать", "обязанности и задачи",
             // Conditions aliases
             "условия", "что мы предлагаем", "мы предлагаем", "условия работы", "условия труда", "что предлагаем",
             // Other aliases
