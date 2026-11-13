@@ -11,3 +11,9 @@ app.log
 appsettings.json
 bin/
 obj/
+app.log.before_*
+check_report.txt
+parse_*.txt
+real_run_*.txt
+replay_*.txt
+app.log.*

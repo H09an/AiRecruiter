@@ -119,4 +119,44 @@ public class TelegramNotifier
             return false;
         }
     }
+
+    public async Task<bool> SendParserAlertAsync(string message)
+    {
+        var preview = message.Length > 100 ? message[..100] : message;
+        Logger.Log($"[Telegram] ALERT отправка: {preview}");
+
+        var payload = new
+        {
+            chat_id = _chatId,
+            text = message,
+            parse_mode = "HTML",
+            disable_web_page_preview = true
+        };
+
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(
+                $"https://api.telegram.org/bot{_botToken}/sendMessage",
+                payload);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                Logger.Log($"[Telegram] ALERT ОШИБКА {response.StatusCode}: {errorBody}");
+                return false;
+            }
+
+            Logger.Log("[Telegram] ALERT OK");
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"[Telegram] ALERT ИСКЛЮЧЕНИЕ: {ex.Message}");
+            return false;
+        }
+    }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Globalization;
 using AiRecruiter.Analyzers;
 using AiRecruiter.Models;
 using AiRecruiter.Notifiers;
@@ -11,6 +12,43 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
+        // Офлайн-проверка парсера на локальных HTML из samples/
+        if (args.Length >= 2 && args[0] == "--parse-samples")
+        {
+            var dir = args[1];
+            if (!Directory.Exists(dir))
+            {
+                Console.WriteLine($"Папка не найдена: {dir}");
+                return;
+            }
+
+            foreach (var file in Directory.GetFiles(dir, "*.html").OrderBy(f => f))
+            {
+                var html = await File.ReadAllTextAsync(file);
+                var vacancy = await HhParser.ParseVacancyHtmlAsync(html, Path.GetFileName(file));
+
+                Console.WriteLine($"=== {Path.GetFileName(file)} ===");
+                Console.WriteLine($"Title: {vacancy.Title}");
+                Console.WriteLine($"Company: {vacancy.Company}");
+                Console.WriteLine($"Salary: {vacancy.Salary}");
+                Console.WriteLine($"Experience: {vacancy.Experience}");
+                Console.WriteLine($"WorkFormat: {vacancy.WorkFormat}");
+                Console.WriteLine($"Schedule: {vacancy.Schedule}");
+                Console.WriteLine($"Employment: {vacancy.Employment}");
+                Console.WriteLine($"Location: {vacancy.Location}");
+                Console.WriteLine($"HiringFormats: {vacancy.HiringFormats}");
+                Console.WriteLine($"PublishedAt: {vacancy.PublishedAt}");
+                Console.WriteLine($"KeySkills ({vacancy.KeySkills.Count}): {string.Join(", ", vacancy.KeySkills)}");
+                Console.WriteLine($"Requirements: {vacancy.Requirements.Length} симв.");
+                Console.WriteLine($"Responsibilities: {vacancy.Responsibilities.Length} симв.");
+                Console.WriteLine($"Conditions: {vacancy.Conditions.Length} симв.");
+                Console.WriteLine($"Description: {vacancy.Description.Length} симв.");
+                Console.WriteLine();
+            }
+
+            return;
+        }
+
         // Режим replay для детерминированной проверки парсинга ответов GigaChat
         if (args.Length >= 2 && args[0] == "--replay-failed")
         {
@@ -43,8 +81,8 @@ public class Program
         {
             var config = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddEnvironmentVariables()
                 .AddJsonFile("appsettings.json", optional: true)
+                .AddEnvironmentVariables()
                 .Build();
 
             var authKey = Environment.GetEnvironmentVariable("GIGACHAT_AUTH_KEY");
@@ -125,9 +163,76 @@ public class Program
 
             Logger.Log($"Found {vacancies.Count} new vacancies.");
 
+            var summary = HhParser.ParserRunSummary.BuildRunSummary(vacancies);
+            Logger.Log(summary.ToLogLine());
+
+            // Читаем пороги из конфигурации с значениями по умолчанию.
+            int minVacanciesForAlert = ReadIntConfig(config, "HhParser:Thresholds:MinVacanciesForAlert", 5);
+            int requirementsPercent = ReadIntConfig(config, "HhParser:Thresholds:RequirementsPercent", 80);
+            int responsibilitiesPercent = ReadIntConfig(config, "HhParser:Thresholds:ResponsibilitiesPercent", 50);
+            int keySkillsPercent = ReadIntConfig(config, "HhParser:Thresholds:KeySkillsPercent", 30);
+            int conditionsPercent = ReadIntConfig(config, "HhParser:Thresholds:ConditionsPercent", 40);
+            int descriptionFallbackMaxPercent = ReadIntConfig(config, "HhParser:Thresholds:DescriptionFallbackMaxPercent", 50);
+
+            var warnings = new List<string>();
+
+            if (summary.Total == 0)
+            {
+                Logger.Log("[HhParser] ВНИМАНИЕ: за прогон не собрано ни одной вакансии — проверьте селекторы или seen_vacancies.txt.");
+            }
+            else if (summary.Total >= minVacanciesForAlert)
+            {
+                int reqPercent = summary.Percent(summary.WithRequirements);
+                if (reqPercent < requirementsPercent)
+                {
+                    var w = $"Requirements={reqPercent}% (порог {requirementsPercent}%)";
+                    warnings.Add(w);
+                    Logger.Log($"[HhParser] ВНИМАНИЕ: Requirements заполнено в {reqPercent}% вакансий (порог {requirementsPercent}%). Возможна смена вёрстки hh.ru.");
+                }
+
+                int respPercent = summary.Percent(summary.WithResponsibilities);
+                if (respPercent < responsibilitiesPercent)
+                {
+                    var w = $"Responsibilities={respPercent}% (порог {responsibilitiesPercent}%)";
+                    warnings.Add(w);
+                    Logger.Log($"[HhParser] ВНИМАНИЕ: Responsibilities заполнено в {respPercent}% вакансий (порог {responsibilitiesPercent}%). Возможна смена вёрстки hh.ru.");
+                }
+
+                int skillsPercent = summary.Percent(summary.WithKeySkills);
+                if (skillsPercent < keySkillsPercent)
+                {
+                    var w = $"KeySkills={skillsPercent}% (порог {keySkillsPercent}%)";
+                    warnings.Add(w);
+                    Logger.Log($"[HhParser] ВНИМАНИЕ: KeySkills заполнено в {skillsPercent}% вакансий (порог {keySkillsPercent}%). Возможна смена вёрстки hh.ru.");
+                }
+
+                int condPercent = summary.Percent(summary.WithConditions);
+                if (condPercent < conditionsPercent)
+                {
+                    var w = $"Conditions={condPercent}% (порог {conditionsPercent}%)";
+                    warnings.Add(w);
+                    Logger.Log($"[HhParser] ВНИМАНИЕ: Conditions заполнено в {condPercent}% вакансий (порог {conditionsPercent}%). Возможна смена вёрстки hh.ru.");
+                }
+
+                int fallbackPercent = summary.Percent(summary.DescriptionFallback);
+                if (fallbackPercent > descriptionFallbackMaxPercent)
+                {
+                    var w = $"descriptionFallback=True={fallbackPercent}% (порог максимум {descriptionFallbackMaxPercent}%)";
+                    warnings.Add(w);
+                    Logger.Log($"[HhParser] ВНИМАНИЕ: descriptionFallback=True в {fallbackPercent}% вакансий (порог максимум {descriptionFallbackMaxPercent}%). Возможна смена вёрстки hh.ru.");
+                }
+            }
+
             var analyzer = new JobAnalyzer(authKey, resumeText, profileText, contacts, config);
 
             var notifier = new TelegramNotifier(botToken, chatId);
+
+            if (warnings.Count > 0)
+            {
+                var alertText = "⚠️ HhParser: подозрение на смену вёрстки.\n" + string.Join("\n", warnings) + "\nПроверьте селекторы.";
+                await notifier.SendParserAlertAsync(alertText);
+                Logger.Log("[HhParser] ALERT отправлен в Telegram.");
+            }
 
             foreach (var vacancy in vacancies)
             {
@@ -193,5 +298,19 @@ public class Program
         {
             Logger.Log("=== Завершение программы ===");
         }
+    }
+
+    private static int ReadIntConfig(IConfiguration? config, string key, int defaultValue)
+    {
+        var raw = config?[key];
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+        {
+            return value;
+        }
+        return defaultValue;
     }
 }
