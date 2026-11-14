@@ -17,6 +17,7 @@ public class Vacancy
     public string Employment { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
     public string HiringFormats { get; set; } = string.Empty;
+    public string TechStack { get; set; } = string.Empty;
     public string Requirements { get; set; } = string.Empty;
     public string Responsibilities { get; set; } = string.Empty;
     public string Conditions { get; set; } = string.Empty;

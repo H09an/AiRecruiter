@@ -77,6 +77,10 @@ public class TelegramNotifier
             ? $"\n\n<blockquote expandable>Сопроводительное письмо:\n{WebUtility.HtmlEncode(coverLetter)}</blockquote>"
             : string.Empty;
 
+        var techStackBlock = string.IsNullOrWhiteSpace(vacancy.TechStack)
+            ? string.Empty
+            : $"\nСтек: {WebUtility.HtmlEncode(vacancy.TechStack)}";
+
         string message = $"""
             {(string.IsNullOrEmpty(priorityLabel) ? "Найдена вакансия!" : priorityLabel)}
 
@@ -85,12 +89,12 @@ public class TelegramNotifier
 
             Вакансия: {WebUtility.HtmlEncode(vacancy.Title)}
             Компания: {WebUtility.HtmlEncode(vacancy.Company)}
-            Зарплата: {WebUtility.HtmlEncode(vacancy.Salary)}
+            Зарплата: {WebUtility.HtmlEncode(vacancy.Salary)}{techStackBlock}
 
             Ссылка: {vacancy.Link}{coverLetterBlock}
             """;
 
-        Logger.Log($"[Telegram] Отправка: score={result.Score} | label={priorityLabel} | {vacancy.Title} | {vacancy.Link} | письмо={coverLetter.Length}");
+        Logger.Log($"[Telegram] Отправка: score={result.Score} | label={priorityLabel} | {vacancy.Title} | {vacancy.Link} | письмо={coverLetter.Length} | techStack={vacancy.TechStack.Length}");
 
         var payload = new
         {

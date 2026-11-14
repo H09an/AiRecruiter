@@ -43,6 +43,7 @@ public class Program
                 Console.WriteLine($"Responsibilities: {vacancy.Responsibilities.Length} симв.");
                 Console.WriteLine($"Conditions: {vacancy.Conditions.Length} симв.");
                 Console.WriteLine($"Description: {vacancy.Description.Length} симв.");
+                Console.WriteLine($"TechStack ({vacancy.TechStack.Length}): {vacancy.TechStack}");
                 Console.WriteLine();
             }
 

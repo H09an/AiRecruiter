@@ -259,10 +259,11 @@ public class HhParser
                     Responsibilities = details?.Responsibilities ?? string.Empty,
                     Conditions = details?.Conditions ?? string.Empty,
                     PublishedAt = details?.PublishedAt ?? string.Empty,
-                    KeySkills = details?.KeySkills ?? new List<string>()
+                    KeySkills = details?.KeySkills ?? new List<string>(),
+                    TechStack = details?.TechStack ?? string.Empty,
                 });
 
-                Logger.Log($"[HhParser] Детали: experience={details?.Experience ?? ""} | workFormat={details?.WorkFormat ?? ""} | schedule={details?.Schedule ?? ""} | employment={details?.Employment ?? ""} | location={details?.Location ?? ""} | salary={salary} | skills={details?.KeySkills.Count ?? 0} | requirements={details?.Requirements.Length ?? 0} симв. | responsibilities={details?.Responsibilities.Length ?? 0} симв. | conditions={details?.Conditions.Length ?? 0} симв. | {link}");
+                Logger.Log($"[HhParser] Детали: experience={details?.Experience ?? ""} | workFormat={details?.WorkFormat ?? ""} | schedule={details?.Schedule ?? ""} | employment={details?.Employment ?? ""} | location={details?.Location ?? ""} | salary={salary} | skills={details?.KeySkills.Count ?? 0} | requirements={details?.Requirements.Length ?? 0} симв. | responsibilities={details?.Responsibilities.Length ?? 0} симв. | conditions={details?.Conditions.Length ?? 0} симв. | techStack={details?.TechStack.Length ?? 0} | {link}");
             }
 
             Logger.Log($"[HhParser] Страница {page}: карточки={cards.Length}, с зарплатой={cardsWithSalary}, без зарплаты={cardsWithoutSalary}");
@@ -657,6 +658,7 @@ public class HhParser
         vacancy.Description = GetTextWithBreaks(descriptionElement);
         Logger.Log($"[HhParser] Description источник={descriptionSource} | {link}");
         ExtractSections(descriptionElement, vacancy, document);
+        vacancy.TechStack = ExtractTechStack(descriptionElement, vacancy.Description);
         return vacancy;
     }
 
@@ -801,6 +803,192 @@ public class HhParser
         }
 
         Logger.Log($"[HhParser] Секции: requirements={vacancy.Requirements.Length} | responsibilities={vacancy.Responsibilities.Length} | conditions={vacancy.Conditions.Length} | {vacancy.Link}");
+    }
+
+    /// <summary>
+    /// Извлекает блок Технологический стек из описания вакансии.
+    /// Ищет заголовок (strong/b, p с одним strong, div/section/h2-h4 с текстом-алиасом до 120 символов),
+    /// затем собирает последующие sibling-элементы до следующего известного заголовка.
+    /// </summary>
+    private static string ExtractTechStack(IElement descriptionElement, string descriptionText)
+    {
+        if (descriptionElement == null || descriptionText == null)
+        {
+            return string.Empty;
+        }
+
+        var techStackAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "наш стек",
+            "стек проекта",
+            "технологии и инструменты",
+            "технологии",
+            "технологический стек"
+        };
+
+        // Найти элемент-заголовок стека технологий
+        IElement? headingElement = null;
+        foreach (var child in descriptionElement.ChildNodes)
+        {
+            if (child is not IElement element)
+            {
+                continue;
+            }
+
+            var tag = element.TagName;
+            string? text = null;
+
+            if (tag is "STRONG" or "B")
+            {
+                text = GetText(element);
+            }
+            else if (tag == "P")
+            {
+                var strongChildren = element.QuerySelectorAll("strong, b");
+                if (strongChildren.Length == 1)
+                {
+                    var strong = strongChildren[0];
+                    if (NormalizeInline(element.TextContent) == NormalizeInline(strong.TextContent))
+                    {
+                        text = GetText(strong);
+                    }
+                }
+            }
+            else if (tag is "DIV" or "SECTION" or "H2" or "H3" or "H4")
+            {
+                var rawText = NormalizeInline(element.TextContent);
+                if (string.IsNullOrWhiteSpace(rawText) || rawText.Length > 120)
+                {
+                    continue;
+                }
+                text = rawText;
+            }
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            var normalized = text.Trim().TrimEnd(':').Trim().ToLowerInvariant();
+            if (techStackAliases.Contains(normalized))
+            {
+                headingElement = element;
+                break;
+            }
+        }
+
+        if (headingElement == null)
+        {
+            // Fallback: regex на тексте описания вакансии
+            var techStackRegex = new Regex(@"(?im)^\s*(Наш стек|Стек проекта|Технологии и инструменты|Технологии|Технологический стек)[:\s]*$", RegexOptions.Multiline);
+            var match = techStackRegex.Match(descriptionText ?? string.Empty);
+            if (!match.Success)
+            {
+                return string.Empty;
+            }
+
+            var start = match.Index + match.Length;
+            var end = (descriptionText ?? string.Empty).Length;
+
+            // Найти следующий известный заголовок секции
+            var sectionRegex = new Regex(@"(?im)^\s*(Требования|Обязанности|Условия|Мы предлагаем|Что предстоит делать|Вам предстоит|Вы нам подходите|Необходимые навыки|Чего мы ждем|Чего мы ждём|Ожидаем|Кто нам подходит|Кого мы ищем|Будет плюсом|Желательно|Преимуществом|Что мы предлагаем|Что предлагаем|Наш стек|Стек проекта|Технологии и инструменты|Технологии|Технологический стек)[:\s]*$", RegexOptions.Multiline);
+            var nextMatch = sectionRegex.Match(descriptionText ?? string.Empty, start);
+            if (nextMatch.Success)
+            {
+                end = nextMatch.Index;
+            }
+
+            var sectionText = (descriptionText ?? string.Empty).Substring(start, end - start).Trim();
+            return NormalizeMultiline(sectionText);
+        }
+
+        // Собрать следующие sibling-элементы после заголовка
+        var sb = new StringBuilder();
+        var collecting = false;
+
+        foreach (var child in descriptionElement.ChildNodes)
+        {
+            if (child == headingElement)
+            {
+                collecting = true;
+                continue;
+            }
+
+            if (child is not IElement element || !collecting)
+            {
+                continue;
+            }
+
+            var tag = element.TagName;
+            var elementText = NormalizeInline(element.TextContent);
+
+            // Проверяем, не является ли следующий элемент известным заголовком секции
+            if (!string.IsNullOrWhiteSpace(elementText) && elementText.Length <= 120)
+            {
+                var normalizedElementText = elementText.Trim().TrimEnd(':').Trim().ToLowerInvariant();
+                if (techStackAliases.Contains(normalizedElementText) || IsKnownSectionHeading(normalizedElementText))
+                {
+                    break;
+                }
+            }
+
+            // Обработать содержимое элемента
+            if (tag is "UL" or "OL")
+            {
+                var listItems = element.Children.Where(c => c.TagName == "LI").ToList();
+                foreach (var li in listItems)
+                {
+                    var itemText = GetTextWithBreaks(li);
+                    if (!string.IsNullOrWhiteSpace(itemText))
+                    {
+                        if (sb.Length > 0) sb.Append('\n');
+                        sb.Append("- " + itemText);
+                    }
+                }
+            }
+            else if (tag == "BR")
+            {
+                if (sb.Length > 0) sb.Append('\n');
+            }
+            else
+            {
+                var blockText = GetTextWithBreaks(element);
+                if (!string.IsNullOrWhiteSpace(blockText))
+                {
+                    if (sb.Length > 0) sb.Append('\n');
+                    sb.Append(blockText);
+                }
+            }
+        }
+
+        return NormalizeMultiline(sb.ToString());
+    }
+
+    private static bool IsKnownSectionHeading(string normalizedText)
+    {
+        return normalizedText.StartsWith("требования") || normalizedText.StartsWith("необходимые навыки") ||
+               normalizedText.StartsWith("вы нам подходите") || normalizedText.StartsWith("наши ожидания") ||
+               normalizedText.StartsWith("стек технологий") || normalizedText.StartsWith("что мы ждём") ||
+               normalizedText.StartsWith("мы ищем кандидата") || normalizedText.StartsWith("чего мы ждем") ||
+               normalizedText.StartsWith("чего мы ждём") || normalizedText.StartsWith("ожидаем") ||
+               normalizedText.StartsWith("кто нам подходит") || normalizedText.StartsWith("кого мы ищем") ||
+               normalizedText.StartsWith("мы ждём") || normalizedText.StartsWith("наши требования") ||
+               normalizedText.StartsWith("что мы ожидаем") || normalizedText.StartsWith("будет плюсом") ||
+               normalizedText.StartsWith("желательно") || normalizedText.StartsWith("преимуществом") ||
+               normalizedText.StartsWith("обязанности") || normalizedText.StartsWith("что предстоит делать") ||
+               normalizedText.StartsWith("вам предстоит") || normalizedText.StartsWith("задачи") ||
+               normalizedText.StartsWith("чем предстоит заниматься") || normalizedText.StartsWith("что делать") ||
+               normalizedText.StartsWith("что нужно делать") || normalizedText.StartsWith("что надо делать") ||
+               normalizedText.StartsWith("обязанности и задачи") ||
+               normalizedText.StartsWith("условия") || normalizedText.StartsWith("что мы предлагаем") ||
+               normalizedText.StartsWith("мы предлагаем") || normalizedText.StartsWith("условия работы") ||
+               normalizedText.StartsWith("условия труда") || normalizedText.StartsWith("что предлагаем") ||
+               normalizedText.StartsWith("важно") || normalizedText.StartsWith("этапы отбора") ||
+               normalizedText.StartsWith("о компании") || normalizedText.StartsWith("как откликнуться") ||
+               normalizedText.StartsWith("контакты") ||
+               normalizedText.StartsWith("наш стек") || normalizedText.StartsWith("стек проекта") ||
+               normalizedText.StartsWith("технологии и инструменты") || normalizedText.StartsWith("технологии") ||
+               normalizedText.StartsWith("технологический стек");
     }
 
     /// <summary>

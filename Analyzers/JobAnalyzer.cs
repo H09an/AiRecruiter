@@ -232,6 +232,8 @@ public class JobAnalyzer
 - Nice-to-have не попадает в must_have_missing, только в nice_to_have_missing.
 - must_have_missing и nice_to_have_missing — конкретные названия навыков или требований из вакансии, а не общие фразы.
 
+Опирайся на логику автора вакансии. Если требование сформулировано странно, мягко или противоречиво — это его логика, не твоя. Оценивай как есть, не «исправляй» вакансию. Если ты уверена, что must-have отсутствует, включи конкретный пункт в must_have_missing. Если не уверена (например, soft skill нельзя проверить по резюме) — не включай его в must_have_missing, но в comment пиши «возможно, отсутствует», а не «отсутствует».
+
 РУБРИКА
 Оцени каждую группу по шкале 0–10:
 - must_have (60%): обязательные требования — опыт, инструменты, домен, формат работы, уровень.
@@ -478,6 +480,8 @@ public class JobAnalyzer
 
         Logger.Log($"[GigaChat] rubric_scores: must_have_score={result.MustHaveScore?.ToString() ?? "—"} | nice_to_have_score={result.NiceToHaveScore?.ToString() ?? "—"} | seniority_score={result.SeniorityScore?.ToString() ?? "—"} | english_score={result.EnglishScore?.ToString() ?? "—"} | weighted_score={result.WeightedScore?.ToString("F1") ?? "—"} | final_score={result.Score} | {vacancy.Link}");
 
+        bool redFlagsExplainGap = result.RedFlags.Count > 0 && result.MustHaveScore is >= 5;
+
         if (result.WeightedScore is double weighted
             && Math.Abs(result.Score - Math.Round(weighted)) > 1)
         {
@@ -489,12 +493,12 @@ public class JobAnalyzer
             Logger.Log($"[GigaChat] Противоречие: final_score={result.Score}, но must_have_missing_count={result.MustHaveMissing.Count} | {vacancy.Link}");
         }
 
-        if (result.Score <= 4 && result.MustHaveMissing.Count == 0)
+        if (result.Score <= 4 && result.MustHaveMissing.Count == 0 && !redFlagsExplainGap)
         {
             Logger.Log($"[GigaChat] Противоречие: final_score={result.Score}, но must_have_missing_count=0 | {vacancy.Link}");
         }
 
-        if (result.MustHaveMissing.Count == 0 && result.MustHaveScore is < 8)
+        if (result.MustHaveMissing.Count == 0 && result.MustHaveScore is < 8 && !redFlagsExplainGap)
         {
             Logger.Log($"[GigaChat] Противоречие: must_have_missing_count=0, но must_have_score={result.MustHaveScore} | {vacancy.Link}");
         }
@@ -560,6 +564,15 @@ public class JobAnalyzer
         else if (string.IsNullOrWhiteSpace(_candidateSummary))
         {
             Logger.Log($"[GigaChat] candidate_summary пуст | {vacancy.Link}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(vacancy.TechStack))
+        {
+            sb.AppendLine();
+            sb.AppendLine("=== СТЕК ПРОЕКТА ===");
+            blocks.Add("=== СТЕК ПРОЕКТА ===");
+            sb.AppendLine(Truncate(vacancy.TechStack, 2000, "techStack"));
+            sb.AppendLine();
         }
 
         if (!string.IsNullOrWhiteSpace(vacancy.Requirements))
