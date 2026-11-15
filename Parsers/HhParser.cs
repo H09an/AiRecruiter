@@ -13,7 +13,7 @@ namespace AiRecruiter.Parsers;
 /// Parses hh.ru vacancy search result pages using AngleSharp HTML parsing only
 /// (the official hh.ru API is not used).
 /// </summary>
-public class HhParser
+public sealed class HhParser
 {
     private const string BaseUrl = "https://hh.ru";
     private static readonly string[] CardSelectors =
@@ -1888,7 +1888,7 @@ public class HhParser
     /// <summary>
     /// Агрегированная сводка по прогону парсинга вакансий.
     /// </summary>
-    public class ParserRunSummary
+    public sealed class ParserRunSummary
     {
         public int Total { get; set; }
         public int WithRequirements { get; set; }

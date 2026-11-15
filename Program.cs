@@ -8,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace AiRecruiter;
 
-public class Program
+public sealed class Program
 {
     public static async Task Main(string[] args)
     {
@@ -78,6 +78,20 @@ public class Program
 
         Logger.Log("=== Запуск программы ===");
 
+        // Первый Ctrl+C — дообработать текущую вакансию и выйти (иначе kill между отправкой
+        // в Telegram и записью в seen_vacancies.txt даёт дубль уведомления). Второй — жёсткий выход.
+        // Без using: обработчик живёт до конца процесса и может сработать после выхода из Main.
+        var stopCts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            if (!stopCts.IsCancellationRequested)
+            {
+                e.Cancel = true;
+                stopCts.Cancel();
+                Logger.Log("Получен Ctrl+C: остановка после текущей вакансии (повторный Ctrl+C — немедленный выход).");
+            }
+        };
+
         try
         {
             var config = new ConfigurationBuilder()
@@ -125,7 +139,11 @@ public class Program
                 Console.WriteLine("Ошибка: переменные TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID не установлены.");
                 return;
             }
-            long chatId = long.Parse(chatIdStr);
+            if (!long.TryParse(chatIdStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var chatId))
+            {
+                Console.WriteLine($"Ошибка: TELEGRAM_CHAT_ID должен быть целым числом, получено '{chatIdStr}'.");
+                return;
+            }
 
             if (string.IsNullOrEmpty(searchQuery)
                 || string.IsNullOrEmpty(areaCode)
@@ -240,6 +258,12 @@ public class Program
 
             foreach (var vacancy in vacancies)
             {
+                if (stopCts.IsCancellationRequested)
+                {
+                    Logger.Log("[Остановка] Прогон прерван пользователем.");
+                    break;
+                }
+
                 if (seenVacancies.Contains(vacancy.Link))
                 {
                     Logger.Log($"[Пропущено] Уже видели: {vacancy.Link}");

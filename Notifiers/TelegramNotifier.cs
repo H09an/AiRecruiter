@@ -8,7 +8,7 @@ using AiRecruiter.Models;
 
 namespace AiRecruiter.Notifiers;
 
-public class TelegramNotifier
+public sealed class TelegramNotifier
 {
     private readonly string _botToken;
     private readonly long _chatId;

@@ -3,7 +3,7 @@ namespace AiRecruiter.Models;
 /// <summary>
 /// Represents a single vacancy found on hh.ru.
 /// </summary>
-public class Vacancy
+public sealed class Vacancy
 {
     public string Title { get; set; } = string.Empty;
     public string Company { get; set; } = string.Empty;

@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="AiRecruiter.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/AiRecruiter.Tests/AiRecruiter.Tests.csproj" />
+  </Folder>
+</Solution>

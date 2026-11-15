@@ -13,7 +13,7 @@ using AiRecruiter.Models;
 
 namespace AiRecruiter.Analyzers;
 
-public class AnalysisResult
+public sealed class AnalysisResult
 {
     public int Score;
     public string Comment = string.Empty;
@@ -64,7 +64,7 @@ internal sealed class GigaChatAnalysisDto
     public JsonElement? Scoring { get; set; }
 }
 
-public class JobAnalyzer
+public sealed class JobAnalyzer
 {
     private static bool? _supportsJsonFormat;
     private static int _jsonFailureCount;
@@ -839,7 +839,12 @@ public class JobAnalyzer
             int score;
             if (candidate.Score.ValueKind == JsonValueKind.Number)
             {
-                score = candidate.Score.GetInt32();
+                // TryGetInt32: дробный score (7.5) не должен бросать FormatException из Try-метода
+                if (!candidate.Score.TryGetInt32(out score))
+                {
+                    reason = "score не целое число";
+                    continue;
+                }
             }
             else
             {
