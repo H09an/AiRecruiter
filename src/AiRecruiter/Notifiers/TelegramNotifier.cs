@@ -2,7 +2,6 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AiRecruiter.Analyzers;
 using AiRecruiter.Models;
@@ -63,12 +62,6 @@ public sealed class TelegramNotifier : IDisposable
 
     public async Task<bool> SendVacancyAsync(Vacancy vacancy, AnalysisResult result, string priorityLabel)
     {
-        if (IsInternshipTitle(vacancy.Title))
-        {
-            Logger.Log($"[Telegram] Пропуск: стажировка | {vacancy.Title} | {vacancy.Link}");
-            return false;
-        }
-
         var coverLetter = result.CoverLetter.Replace("\\n", "\n");
 
         bool hasCoverLetter = !string.IsNullOrWhiteSpace(result.CoverLetter)
@@ -170,16 +163,6 @@ public sealed class TelegramNotifier : IDisposable
             Logger.Log($"[Telegram] ALERT ИСКЛЮЧЕНИЕ: {ex.Message}");
             return false;
         }
-    }
-
-    private static bool IsInternshipTitle(string title)
-    {
-        var lower = title.ToLowerInvariant();
-        if (lower.Contains("стажер") || lower.Contains("стажёр") || lower.Contains("стажиров"))
-        {
-            return true;
-        }
-        return Regex.IsMatch(lower, @"\b(intern|internship|trainee)\b");
     }
 
     public void Dispose() => _httpClient.Dispose();
