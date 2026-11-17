@@ -512,7 +512,7 @@ public sealed class JobAnalyzer
         var sb = new StringBuilder();
         var blocks = new List<string>();
 
-        var candidateSummaryTruncated = Truncate(_candidateSummary, 3000, "candidate_summary");
+        var candidateSummaryTruncated = Truncate(_candidateSummary, 4000, "candidate_summary");
         sb.AppendLine("=== КАНДИДАТ (сводка) ===");
         blocks.Add("=== КАНДИДАТ (сводка) ===");
         sb.AppendLine(candidateSummaryTruncated);
