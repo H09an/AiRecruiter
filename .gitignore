@@ -24,3 +24,8 @@ app.log.*
 *.user
 TestResults/
 samples/
+vacancies.db
+vacancies.db-shm
+vacancies.db-wal
+vacancies.db-journal
+*.migrated

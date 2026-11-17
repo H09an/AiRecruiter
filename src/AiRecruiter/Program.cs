@@ -6,6 +6,7 @@ using AiRecruiter.Filters;
 using AiRecruiter.Models;
 using AiRecruiter.Notifiers;
 using AiRecruiter.Parsers;
+using AiRecruiter.Storage;
 using Microsoft.Extensions.Configuration;
 
 namespace AiRecruiter;
@@ -186,18 +187,43 @@ public sealed class Program
                 workFormat = "REMOTE"; // Default fallback for other regions
             }
 
-            // Load already-seen vacancy links before parsing so the parser can filter them out.
-            var seenVacancies = new HashSet<string>();
+            // Состояние вакансий в SQLite; seen_vacancies.txt мигрируется один раз.
+            var repository = new VacancyRepository("vacancies.db");
+            repository.Initialize();
+
             if (File.Exists("seen_vacancies.txt"))
             {
                 var lines = await File.ReadAllLinesAsync("seen_vacancies.txt");
                 foreach (var line in lines)
                 {
-                    seenVacancies.Add(line.Trim());
+                    var link = line.Trim();
+                    if (link.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    repository.Upsert(new VacancyRecord(
+                        Link: link,
+                        EmployerId: null,
+                        Title: null,
+                        Company: null,
+                        Salary: null,
+                        Score: null,
+                        Status: "seen",
+                        FirstSeen: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                        AnalyzedAt: null,
+                        FailReason: null));
                 }
+
+                File.Move("seen_vacancies.txt", "seen_vacancies.txt.migrated", overwrite: true);
+                Logger.Log($"[SQLite] Мигрировано ссылок из seen_vacancies.txt: {lines.Length}");
             }
 
-            var vacancies = await HhParser.ParseVacanciesAsync(searchQuery, areaCode, workFormat, seenVacancies, 10);
+            int minScore = IntConfigReader.Read(config, "Analyzer:MinScore", 7);
+
+            var skipLinks = new HashSet<string>(repository.GetLinksToSkip(), StringComparer.Ordinal);
+
+            var vacancies = await HhParser.ParseVacanciesAsync(searchQuery, areaCode, workFormat, skipLinks, 10);
 
             Logger.Log($"Found {vacancies.Count} new vacancies.");
 
@@ -212,6 +238,7 @@ public sealed class Program
             int keySkillsPercent = IntConfigReader.Read(config, "HhParser:Thresholds:KeySkillsPercent", 10);
             int conditionsPercent = IntConfigReader.Read(config, "HhParser:Thresholds:ConditionsPercent", 10);
             int minSalary = IntConfigReader.Read(config, "Filters:MinSalary", 0);
+            var excludeTitleWords = StringListConfigReader.Read(config, "Filters:ExcludeTitleWords");
 
             var warnings = new List<string>();
 
@@ -276,7 +303,13 @@ public sealed class Program
                 Logger.Log("[HhParser] ALERT отправлен в Telegram.");
             }
 
+            // Повторная отправка из сохранённого результата — без GigaChat.
+            await RetryPendingSendsAsync(repository, notifier, minScore);
+
             int salaryFiltered = 0;
+            var scoreCounts = new int[11];
+            int sentCount = 0;
+            int belowThresholdCount = 0;
 
             foreach (var vacancy in vacancies)
             {
@@ -286,9 +319,33 @@ public sealed class Program
                     break;
                 }
 
-                if (seenVacancies.Contains(vacancy.Link))
+                if (skipLinks.Contains(vacancy.Link))
                 {
                     Logger.Log($"[Пропущено] Уже видели: {vacancy.Link}");
+                    continue;
+                }
+
+                var nowIso = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+
+                var excludedWord = TitleFilter.FindExcludedWord(vacancy.Title, excludeTitleWords);
+                if (excludedWord is not null)
+                {
+                    Logger.Log($"[Пропущено] Стоп-слово '{excludedWord}': {vacancy.Title} | {vacancy.Link}");
+                    repository.Upsert(new VacancyRecord(
+                        Link: vacancy.Link,
+                        EmployerId: null,
+                        Title: vacancy.Title,
+                        Company: vacancy.Company,
+                        Salary: vacancy.Salary,
+                        Score: null,
+                        Status: "filtered_stopword",
+                        FirstSeen: nowIso,
+                        AnalyzedAt: null,
+                        FailReason: null,
+                        Comment: null,
+                        CoverLetter: null,
+                        TechStack: vacancy.TechStack));
+                    skipLinks.Add(vacancy.Link);
                     continue;
                 }
 
@@ -296,6 +353,21 @@ public sealed class Program
                 if (salaryLowerBound is int lowerBound && SalaryFilter.ShouldSkip(vacancy.Salary, minSalary))
                 {
                     Logger.Log($"[Пропущено] Зарплата ниже порога ({lowerBound} < {minSalary}): {vacancy.Title} | {vacancy.Link}");
+                    repository.Upsert(new VacancyRecord(
+                        Link: vacancy.Link,
+                        EmployerId: null,
+                        Title: vacancy.Title,
+                        Company: vacancy.Company,
+                        Salary: vacancy.Salary,
+                        Score: null,
+                        Status: "filtered_salary",
+                        FirstSeen: nowIso,
+                        AnalyzedAt: null,
+                        FailReason: null,
+                        Comment: null,
+                        CoverLetter: null,
+                        TechStack: vacancy.TechStack));
+                    skipLinks.Add(vacancy.Link);
                     salaryFiltered++;
                     continue;
                 }
@@ -307,22 +379,75 @@ public sealed class Program
                     if (result.Score == 0)
                     {
                         Logger.Log($"[Пропущено] {vacancy.Title} | {vacancy.Link} | {result.Comment}");
+                        repository.Upsert(new VacancyRecord(
+                            Link: vacancy.Link,
+                            EmployerId: null,
+                            Title: vacancy.Title,
+                            Company: vacancy.Company,
+                            Salary: vacancy.Salary,
+                            Score: null,
+                            Status: "analysis_failed",
+                            FirstSeen: nowIso,
+                            AnalyzedAt: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                            FailReason: result.Comment,
+                            Comment: null,
+                            CoverLetter: null,
+                            TechStack: vacancy.TechStack));
+                        skipLinks.Add(vacancy.Link);
+                    }
+                    else if (result.Score < minScore)
+                    {
+                        Logger.Log($"[Оценка: {result.Score}/10] {vacancy} - {result.Comment}");
+                        Logger.Log($"[Оценка ниже порога] score={result.Score} < {minScore}: {vacancy.Title} | {vacancy.Link}");
+                        repository.Upsert(new VacancyRecord(
+                            Link: vacancy.Link,
+                            EmployerId: null,
+                            Title: vacancy.Title,
+                            Company: vacancy.Company,
+                            Salary: vacancy.Salary,
+                            Score: result.Score,
+                            Status: "analyzed_low",
+                            FirstSeen: nowIso,
+                            AnalyzedAt: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                            FailReason: null,
+                            Comment: result.Comment,
+                            CoverLetter: result.CoverLetter,
+                            TechStack: vacancy.TechStack));
+                        skipLinks.Add(vacancy.Link);
+                        scoreCounts[result.Score]++;
+                        belowThresholdCount++;
                     }
                     else
                     {
                         Logger.Log($"[Оценка: {result.Score}/10] {vacancy} - {result.Comment}");
-                    }
+                        repository.Upsert(new VacancyRecord(
+                            Link: vacancy.Link,
+                            EmployerId: null,
+                            Title: vacancy.Title,
+                            Company: vacancy.Company,
+                            Salary: vacancy.Salary,
+                            Score: result.Score,
+                            Status: "analyzed_ok",
+                            FirstSeen: nowIso,
+                            AnalyzedAt: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                            FailReason: null,
+                            Comment: result.Comment,
+                            CoverLetter: result.CoverLetter,
+                            TechStack: vacancy.TechStack));
 
-                    // Политика отправки (Prompt 5.9):
-                    // score >= 7 — сразу в Telegram
-                    if (result.Score >= 3)
-                    {
+                        // Политика отправки: score >= minScore — в Telegram;
+                        // метка 🔥 при score >= 7, иначе 💭.
                         var priorityLabel = result.Score >= 7 ? "🔥 откликаться" : "💭 на подумать";
-                        await notifier.SendVacancyAsync(vacancy, result, priorityLabel);
-                    }
+                        bool sent = await notifier.SendVacancyAsync(vacancy, result, priorityLabel);
+                        repository.SetStatus(vacancy.Link, sent ? "sent" : "send_failed", result.Score);
+                        if (sent)
+                        {
+                            sentCount++;
+                        }
 
-                    seenVacancies.Add(vacancy.Link);
-                    await File.AppendAllTextAsync("seen_vacancies.txt", vacancy.Link + Environment.NewLine);
+                        skipLinks.Add(vacancy.Link);
+                        scoreCounts[result.Score]++;
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -338,6 +463,9 @@ public sealed class Program
             {
                 Logger.Log($"[ИТОГ] Отфильтровано по зарплате: {salaryFiltered}");
             }
+
+            var distribution = string.Join(" ", Enumerable.Range(1, 10).Select(i => $"{i}:{scoreCounts[i]}"));
+            Logger.Log($"[ИТОГ] Распределение оценок: {distribution} | отправлено: {sentCount} | ниже порога: {belowThresholdCount}");
 
             var jsonFailures = JobAnalyzer.GetJsonFailureCount();
             if (jsonFailures > 0)
@@ -355,6 +483,55 @@ public sealed class Program
         finally
         {
             Logger.Log("=== Завершение программы ===");
+        }
+    }
+
+    /// <summary>
+    /// Повторная отправка в Telegram из сохранённого результата анализа
+    /// (статусы send_failed/analyzed_ok) — без вызова GigaChat.
+    /// </summary>
+    private static async Task RetryPendingSendsAsync(
+        VacancyRepository repository,
+        TelegramNotifier notifier,
+        int minScore)
+    {
+        foreach (var record in repository.GetPendingSendRetries())
+        {
+            if (record.Score < minScore)
+            {
+                repository.SetStatus(record.Link, "analyzed_low", record.Score);
+                Logger.Log($"[Повтор] Ниже нового порога: score={record.Score} < {minScore} | {record.Title} | {record.Link}");
+                continue;
+            }
+
+            var vacancy = new Vacancy
+            {
+                Link = record.Link,
+                Title = record.Title ?? string.Empty,
+                Company = record.Company ?? string.Empty,
+                Salary = record.Salary ?? string.Empty,
+                TechStack = record.TechStack ?? string.Empty,
+            };
+
+            var result = new AnalysisResult
+            {
+                Score = record.Score ?? 0,
+                Comment = record.Comment ?? string.Empty,
+                CoverLetter = record.CoverLetter ?? string.Empty,
+            };
+
+            var label = result.Score >= 7 ? "🔥 откликаться" : "💭 на подумать";
+            bool sent = await notifier.SendVacancyAsync(vacancy, result, label);
+            repository.SetStatus(record.Link, sent ? "sent" : "send_failed", result.Score);
+
+            if (sent)
+            {
+                Logger.Log($"[Повтор] Отправлено: score={result.Score} | {vacancy.Title} | {vacancy.Link}");
+            }
+            else
+            {
+                Logger.Log($"[Повтор] Ошибка отправки: score={result.Score} | {vacancy.Title} | {vacancy.Link}");
+            }
         }
     }
 }
