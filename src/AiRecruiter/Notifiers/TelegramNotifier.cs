@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -8,7 +9,7 @@ using AiRecruiter.Models;
 
 namespace AiRecruiter.Notifiers;
 
-public sealed class TelegramNotifier
+public sealed class TelegramNotifier : IDisposable
 {
     private readonly string _botToken;
     private readonly long _chatId;
@@ -56,7 +57,7 @@ public sealed class TelegramNotifier
             }
         }
 
-        _httpClient = new HttpClient(handler);
+        _httpClient = new HttpClient(handler, disposeHandler: true);
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
 
@@ -180,4 +181,6 @@ public sealed class TelegramNotifier
         }
         return Regex.IsMatch(lower, @"\b(intern|internship|trainee)\b");
     }
+
+    public void Dispose() => _httpClient.Dispose();
 }

@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Globalization;
 using AiRecruiter.Analyzers;
+using AiRecruiter.Configuration;
 using AiRecruiter.Models;
 using AiRecruiter.Notifiers;
 using AiRecruiter.Parsers;
@@ -112,10 +113,25 @@ public sealed class Program
             var email = config["Contacts:Email"];
 
             var missingContacts = new List<string>();
-            if (string.IsNullOrWhiteSpace(fio)) missingContacts.Add("Contacts:Fio");
-            if (string.IsNullOrWhiteSpace(tg)) missingContacts.Add("Contacts:Tg");
-            if (string.IsNullOrWhiteSpace(phone)) missingContacts.Add("Contacts:Phone");
-            if (string.IsNullOrWhiteSpace(email)) missingContacts.Add("Contacts:Email");
+            if (string.IsNullOrWhiteSpace(fio))
+            {
+                missingContacts.Add("Contacts:Fio");
+            }
+
+            if (string.IsNullOrWhiteSpace(tg))
+            {
+                missingContacts.Add("Contacts:Tg");
+            }
+
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                missingContacts.Add("Contacts:Phone");
+            }
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                missingContacts.Add("Contacts:Email");
+            }
 
             if (missingContacts.Count > 0)
             {
@@ -174,11 +190,13 @@ public sealed class Program
             if (File.Exists("seen_vacancies.txt"))
             {
                 var lines = await File.ReadAllLinesAsync("seen_vacancies.txt");
-                foreach (var line in lines) seenVacancies.Add(line.Trim());
+                foreach (var line in lines)
+                {
+                    seenVacancies.Add(line.Trim());
+                }
             }
 
-            var parser = new HhParser();
-            var vacancies = await parser.ParseVacanciesAsync(searchQuery, areaCode, workFormat, seenVacancies, 10);
+            var vacancies = await HhParser.ParseVacanciesAsync(searchQuery, areaCode, workFormat, seenVacancies, 10);
 
             Logger.Log($"Found {vacancies.Count} new vacancies.");
 
@@ -186,12 +204,12 @@ public sealed class Program
             Logger.Log(summary.ToLogLine());
 
             // Читаем пороги из конфигурации с значениями по умолчанию.
-            int minVacanciesForAlert = ReadIntConfig(config, "HhParser:Thresholds:MinVacanciesForAlert", 5);
-            int requirementsPercent = ReadIntConfig(config, "HhParser:Thresholds:RequirementsPercent", 80);
-            int descriptionPercent = ReadIntConfig(config, "HhParser:Thresholds:DescriptionPercent", 80);
-            int responsibilitiesPercent = ReadIntConfig(config, "HhParser:Thresholds:ResponsibilitiesPercent", 10);
-            int keySkillsPercent = ReadIntConfig(config, "HhParser:Thresholds:KeySkillsPercent", 10);
-            int conditionsPercent = ReadIntConfig(config, "HhParser:Thresholds:ConditionsPercent", 10);
+            int minVacanciesForAlert = IntConfigReader.Read(config, "HhParser:Thresholds:MinVacanciesForAlert", 5);
+            int requirementsPercent = IntConfigReader.Read(config, "HhParser:Thresholds:RequirementsPercent", 80);
+            int descriptionPercent = IntConfigReader.Read(config, "HhParser:Thresholds:DescriptionPercent", 80);
+            int responsibilitiesPercent = IntConfigReader.Read(config, "HhParser:Thresholds:ResponsibilitiesPercent", 10);
+            int keySkillsPercent = IntConfigReader.Read(config, "HhParser:Thresholds:KeySkillsPercent", 10);
+            int conditionsPercent = IntConfigReader.Read(config, "HhParser:Thresholds:ConditionsPercent", 10);
 
             var warnings = new List<string>();
 
@@ -247,7 +265,7 @@ public sealed class Program
 
             var analyzer = new JobAnalyzer(authKey, resumeText, profileText, contacts, config);
 
-            var notifier = new TelegramNotifier(botToken, chatId);
+            using var notifier = new TelegramNotifier(botToken, chatId);
 
             if (warnings.Count > 0)
             {
@@ -322,18 +340,5 @@ public sealed class Program
             Logger.Log("=== Завершение программы ===");
         }
     }
-
-    private static int ReadIntConfig(IConfiguration? config, string key, int defaultValue)
-    {
-        var raw = config?[key];
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return defaultValue;
-        }
-        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
-        {
-            return value;
-        }
-        return defaultValue;
-    }
 }
+

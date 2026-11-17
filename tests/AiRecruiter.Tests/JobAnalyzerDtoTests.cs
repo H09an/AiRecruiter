@@ -1,4 +1,5 @@
 using AiRecruiter.Analyzers;
+using AiRecruiter.Models;
 
 namespace AiRecruiter.Tests;
 
@@ -16,6 +17,7 @@ public class JobAnalyzerDtoTests
     [InlineData("{\"score\": 7, \"comment\": \"" + Comment + "\",}")]
     [InlineData("﻿Вот оценка: {\"score\": 7, \"comment\": \"" + Comment + "\"} — готово")]
     [InlineData("{\"note\": \"черновик\"} {\"score\": 7, \"comment\": \"" + Comment + "\"}")]
+    [InlineData("{\"score\": 7, \"comment\": \"" + Comment + "\", \"must_have_met\": [\"SQL\"], \"must_have_missing\": [], \"nice_to_have_missing\": [], \"english_required\": null, \"red_flags\": [], \"assumptions\": []}")]
     public void TryParseAndValidateDto_AcceptsValidResponse(string raw)
     {
         var ok = JobAnalyzer.TryParseAndValidateDto(raw, out var dto, out var reason);
@@ -42,5 +44,81 @@ public class JobAnalyzerDtoTests
         Assert.False(ok);
         Assert.Null(dto);
         Assert.NotEmpty(reason);
+    }
+
+    [Theory]
+    [InlineData("Oracle — будет плюсом", "Oracle")]
+    [InlineData("Будет плюсом: Oracle", "Oracle")]
+    public void ReclassifyDesirableMissing_MovesToNiceToHave(string requirements, string missingItem)
+    {
+        var vacancy = new Vacancy { Requirements = requirements };
+        var result = new AnalysisResult { MustHaveMissing = new List<string> { missingItem } };
+
+        JobAnalyzer.ReclassifyDesirableMissing(result, vacancy);
+
+        Assert.DoesNotContain(missingItem, result.MustHaveMissing);
+        Assert.Contains(missingItem, result.NiceToHaveMissing);
+    }
+
+    [Theory]
+    [InlineData("Oracle — обязательно", "Oracle")]
+    [InlineData("Oracle", "Oracle")]
+    public void ReclassifyDesirableMissing_KeepsInMustHaveMissing(string requirements, string missingItem)
+    {
+        var vacancy = new Vacancy { Requirements = requirements };
+        var result = new AnalysisResult { MustHaveMissing = new List<string> { missingItem } };
+
+        JobAnalyzer.ReclassifyDesirableMissing(result, vacancy);
+
+        Assert.Contains(missingItem, result.MustHaveMissing);
+        Assert.DoesNotContain(missingItem, result.NiceToHaveMissing);
+    }
+
+    [Fact]
+    public void GetContradictions_NoProblems_WhenMissingEmptyAndRedFlagsPresent()
+    {
+        var result = new AnalysisResult
+        {
+            Score = 7,
+            MustHaveMissing = new List<string>(),
+            RedFlags = new List<string> { "some red flag" },
+            MustHaveScore = 7,
+        };
+
+        var contradictions = JobAnalyzer.GetContradictions(result);
+
+        Assert.Empty(contradictions);
+    }
+
+    [Fact]
+    public void GetContradictions_Contradiction_WhenScoreLowAndMissingEmpty()
+    {
+        var result = new AnalysisResult
+        {
+            Score = 4,
+            MustHaveMissing = new List<string>(),
+            MustHaveScore = 6,
+        };
+
+        var contradictions = JobAnalyzer.GetContradictions(result);
+
+        Assert.NotEmpty(contradictions);
+        Assert.Contains("Противоречие: final_score=4, но must_have_missing_count=0", contradictions);
+    }
+
+    [Fact]
+    public void GetContradictions_Contradiction_WhenMissingPresentAndScoreHigh()
+    {
+        var result = new AnalysisResult
+        {
+            Score = 8,
+            MustHaveMissing = new List<string> { "Oracle" },
+            MustHaveScore = 9,
+        };
+
+        var contradictions = JobAnalyzer.GetContradictions(result);
+
+        Assert.NotEmpty(contradictions);
+        Assert.Contains("Противоречие: final_score=8, но must_have_missing_count=1", contradictions);
     }
 }

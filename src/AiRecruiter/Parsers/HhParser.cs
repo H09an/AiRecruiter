@@ -3,9 +3,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using AiRecruiter.Models;
 using AngleSharp;
 using AngleSharp.Dom;
-using AiRecruiter.Models;
 
 namespace AiRecruiter.Parsers;
 
@@ -13,7 +13,7 @@ namespace AiRecruiter.Parsers;
 /// Parses hh.ru vacancy search result pages using AngleSharp HTML parsing only
 /// (the official hh.ru API is not used).
 /// </summary>
-public sealed class HhParser
+public static class HhParser
 {
     private const string BaseUrl = "https://hh.ru";
     private static readonly string[] CardSelectors =
@@ -22,13 +22,15 @@ public sealed class HhParser
         "[data-qa='serp-item']" // fallback selector if the markup changes
     };
 
+    private static readonly char[] SentenceSeparators = { ',', ';' };
+
     // Delay between vacancy-page requests so hh.ru does not block us.
     private const int DescriptionDelayMinMs = 1000;
     private const int DescriptionDelayMaxMs = 2000;
 
-    private readonly HttpClient _http;
+    private static readonly HttpClient _http;
 
-    public HhParser()
+    static HhParser()
     {
         _http = new HttpClient();
 
@@ -37,6 +39,7 @@ public sealed class HhParser
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
         _http.DefaultRequestHeaders.AcceptLanguage.ParseAdd("ru-RU,ru;q=0.9,en;q=0.8");
     }
+
 
     /// <summary>
     /// Searches hh.ru for vacancies matching <paramref name="query"/>, paginating through
@@ -49,7 +52,7 @@ public sealed class HhParser
     /// <param name="seenLinks">Vacancy links that have already been processed; they are skipped.</param>
     /// <param name="maxNewVacancies">Maximum number of new vacancies to collect (default 10).</param>
     /// <returns>Up to <paramref name="maxNewVacancies"/> new vacancies, or an empty list if the request fails.</returns>
-    public async Task<List<Vacancy>> ParseVacanciesAsync(string query, string areaCode, string workFormat, HashSet<string> seenLinks, int maxNewVacancies = 10)
+    public static async Task<List<Vacancy>> ParseVacanciesAsync(string query, string areaCode, string workFormat, HashSet<string> seenLinks, int maxNewVacancies = 10)
     {
         var vacancies = new List<Vacancy>();
         var random = new Random();
@@ -106,7 +109,7 @@ public sealed class HhParser
             }
 
             // Parse the HTML with AngleSharp using the default configuration.
-            var context = BrowsingContext.New(Configuration.Default);
+            var context = BrowsingContext.New(global::AngleSharp.Configuration.Default);
             var document = await context.OpenAsync(req => req.Content(html));
 
             // Select vacancy cards, falling back to the legacy selector if needed.
@@ -182,11 +185,11 @@ public sealed class HhParser
                     if (!string.IsNullOrWhiteSpace(href))
                     {
                         href = href.Trim();
-                        if (href.StartsWith("//"))
+                        if (href.StartsWith("//", StringComparison.Ordinal))
                         {
                             href = "https:" + href;
                         }
-                        else if (href.StartsWith("/"))
+                        else if (href.StartsWith('/'))
                         {
                             href = BaseUrl + href;
                         }
@@ -315,7 +318,7 @@ public sealed class HhParser
     /// <summary>
     /// Opens the vacancy's page and extracts the description plus structured fields.
     /// </summary>
-    private async Task<Vacancy?> LoadVacancyDetailsAsync(string vacancyUrl)
+    private static async Task<Vacancy?> LoadVacancyDetailsAsync(string vacancyUrl)
     {
         string html;
         try
@@ -359,7 +362,7 @@ public sealed class HhParser
     /// </summary>
     public static async Task<Vacancy> ParseVacancyHtmlAsync(string html, string link)
     {
-        var context = BrowsingContext.New(Configuration.Default);
+        var context = BrowsingContext.New(global::AngleSharp.Configuration.Default);
         var document = await context.OpenAsync(req => req.Content(html));
 
         var vacancy = new Vacancy { Link = link };
@@ -703,19 +706,35 @@ public sealed class HhParser
                     switch (category)
                     {
                         case "requirements":
-                            if (requirements.Length > 0) requirements.Append('\n');
+                            if (requirements.Length > 0)
+                            {
+                                requirements.Append('\n');
+                            }
+
                             requirements.Append(heading);
                             break;
                         case "responsibilities":
-                            if (responsibilities.Length > 0) responsibilities.Append('\n');
+                            if (responsibilities.Length > 0)
+                            {
+                                responsibilities.Append('\n');
+                            }
+
                             responsibilities.Append(heading);
                             break;
                         case "conditions":
-                            if (conditions.Length > 0) conditions.Append('\n');
+                            if (conditions.Length > 0)
+                            {
+                                conditions.Append('\n');
+                            }
+
                             conditions.Append(heading);
                             break;
                         case "other":
-                            if (other.Length > 0) other.Append('\n');
+                            if (other.Length > 0)
+                            {
+                                other.Append('\n');
+                            }
+
                             other.Append(heading);
                             break;
                     }
@@ -941,21 +960,32 @@ public sealed class HhParser
                     var itemText = GetTextWithBreaks(li);
                     if (!string.IsNullOrWhiteSpace(itemText))
                     {
-                        if (sb.Length > 0) sb.Append('\n');
+                        if (sb.Length > 0)
+                        {
+                            sb.Append('\n');
+                        }
+
                         sb.Append("- " + itemText);
                     }
                 }
             }
             else if (tag == "BR")
             {
-                if (sb.Length > 0) sb.Append('\n');
+                if (sb.Length > 0)
+                {
+                    sb.Append('\n');
+                }
             }
             else
             {
                 var blockText = GetTextWithBreaks(element);
                 if (!string.IsNullOrWhiteSpace(blockText))
                 {
-                    if (sb.Length > 0) sb.Append('\n');
+                    if (sb.Length > 0)
+                    {
+                        sb.Append('\n');
+                    }
+
                     sb.Append(blockText);
                 }
             }
@@ -966,29 +996,29 @@ public sealed class HhParser
 
     private static bool IsKnownSectionHeading(string normalizedText)
     {
-        return normalizedText.StartsWith("требования") || normalizedText.StartsWith("необходимые навыки") ||
-               normalizedText.StartsWith("вы нам подходите") || normalizedText.StartsWith("наши ожидания") ||
-               normalizedText.StartsWith("стек технологий") || normalizedText.StartsWith("что мы ждём") ||
-               normalizedText.StartsWith("мы ищем кандидата") || normalizedText.StartsWith("чего мы ждем") ||
-               normalizedText.StartsWith("чего мы ждём") || normalizedText.StartsWith("ожидаем") ||
-               normalizedText.StartsWith("кто нам подходит") || normalizedText.StartsWith("кого мы ищем") ||
-               normalizedText.StartsWith("мы ждём") || normalizedText.StartsWith("наши требования") ||
-               normalizedText.StartsWith("что мы ожидаем") || normalizedText.StartsWith("будет плюсом") ||
-               normalizedText.StartsWith("желательно") || normalizedText.StartsWith("преимуществом") ||
-               normalizedText.StartsWith("обязанности") || normalizedText.StartsWith("что предстоит делать") ||
-               normalizedText.StartsWith("вам предстоит") || normalizedText.StartsWith("задачи") ||
-               normalizedText.StartsWith("чем предстоит заниматься") || normalizedText.StartsWith("что делать") ||
-               normalizedText.StartsWith("что нужно делать") || normalizedText.StartsWith("что надо делать") ||
-               normalizedText.StartsWith("обязанности и задачи") ||
-               normalizedText.StartsWith("условия") || normalizedText.StartsWith("что мы предлагаем") ||
-               normalizedText.StartsWith("мы предлагаем") || normalizedText.StartsWith("условия работы") ||
-               normalizedText.StartsWith("условия труда") || normalizedText.StartsWith("что предлагаем") ||
-               normalizedText.StartsWith("важно") || normalizedText.StartsWith("этапы отбора") ||
-               normalizedText.StartsWith("о компании") || normalizedText.StartsWith("как откликнуться") ||
-               normalizedText.StartsWith("контакты") ||
-               normalizedText.StartsWith("наш стек") || normalizedText.StartsWith("стек проекта") ||
-               normalizedText.StartsWith("технологии и инструменты") || normalizedText.StartsWith("технологии") ||
-               normalizedText.StartsWith("технологический стек");
+        return normalizedText.StartsWith("требования", StringComparison.Ordinal) || normalizedText.StartsWith("необходимые навыки", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("вы нам подходите", StringComparison.Ordinal) || normalizedText.StartsWith("наши ожидания", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("стек технологий", StringComparison.Ordinal) || normalizedText.StartsWith("что мы ждём", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("мы ищем кандидата", StringComparison.Ordinal) || normalizedText.StartsWith("чего мы ждем", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("чего мы ждём", StringComparison.Ordinal) || normalizedText.StartsWith("ожидаем", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("кто нам подходит", StringComparison.Ordinal) || normalizedText.StartsWith("кого мы ищем", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("мы ждём", StringComparison.Ordinal) || normalizedText.StartsWith("наши требования", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("что мы ожидаем", StringComparison.Ordinal) || normalizedText.StartsWith("будет плюсом", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("желательно", StringComparison.Ordinal) || normalizedText.StartsWith("преимуществом", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("обязанности", StringComparison.Ordinal) || normalizedText.StartsWith("что предстоит делать", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("вам предстоит", StringComparison.Ordinal) || normalizedText.StartsWith("задачи", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("чем предстоит заниматься", StringComparison.Ordinal) || normalizedText.StartsWith("что делать", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("что нужно делать", StringComparison.Ordinal) || normalizedText.StartsWith("что надо делать", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("обязанности и задачи", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("условия", StringComparison.Ordinal) || normalizedText.StartsWith("что мы предлагаем", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("мы предлагаем", StringComparison.Ordinal) || normalizedText.StartsWith("условия работы", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("условия труда", StringComparison.Ordinal) || normalizedText.StartsWith("что предлагаем", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("важно", StringComparison.Ordinal) || normalizedText.StartsWith("этапы отбора", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("о компании", StringComparison.Ordinal) || normalizedText.StartsWith("как откликнуться", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("контакты", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("наш стек", StringComparison.Ordinal) || normalizedText.StartsWith("стек проекта", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("технологии и инструменты", StringComparison.Ordinal) || normalizedText.StartsWith("технологии", StringComparison.Ordinal) ||
+               normalizedText.StartsWith("технологический стек", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -1021,19 +1051,31 @@ public sealed class HhParser
             var sectionText = description.Substring(start, end - start).Trim();
 
             var heading = matches[i].Groups[1].Value.Trim().ToLowerInvariant();
-            if (heading.StartsWith("требования") || heading.StartsWith("необходимые навыки") || heading.StartsWith("вы нам подходите") || heading.StartsWith("наши ожидания") || heading.StartsWith("стек технологий") || heading.StartsWith("что мы ждём") || heading.StartsWith("мы ищем кандидата") || heading.StartsWith("чего мы ждем") || heading.StartsWith("чего мы ждём") || heading.StartsWith("ожидаем") || heading.StartsWith("кто нам подходит") || heading.StartsWith("кого мы ищем") || heading.StartsWith("мы ждём") || heading.StartsWith("наши требования") || heading.StartsWith("что мы ожидаем") || heading.StartsWith("будет плюсом") || heading.StartsWith("желательно") || heading.StartsWith("преимуществом"))
+            if (MatchesAnyPrefix(heading, RequirementsPrefixes))
             {
-                if (requirements.Length > 0) requirements.Append('\n');
+                if (requirements.Length > 0)
+                {
+                    requirements.Append('\n');
+                }
+
                 requirements.Append(sectionText);
             }
-            else if (heading.StartsWith("обязанности") || heading.StartsWith("что предстоит делать") || heading.StartsWith("вам предстоит") || heading.StartsWith("задачи") || heading.StartsWith("чем предстоит заниматься") || heading.StartsWith("что делать") || heading.StartsWith("что нужно делать") || heading.StartsWith("что надо делать") || heading.StartsWith("обязанности и задачи"))
+            else if (MatchesAnyPrefix(heading, ResponsibilitiesPrefixes))
             {
-                if (responsibilities.Length > 0) responsibilities.Append('\n');
+                if (responsibilities.Length > 0)
+                {
+                    responsibilities.Append('\n');
+                }
+
                 responsibilities.Append(sectionText);
             }
-            else if (heading.StartsWith("условия") || heading.StartsWith("мы предлагаем") || heading.StartsWith("что мы предлагаем") || heading.StartsWith("условия работы") || heading.StartsWith("условия труда") || heading.StartsWith("что предлагаем"))
+            else if (MatchesAnyPrefix(heading, ConditionsPrefixes))
             {
-                if (conditions.Length > 0) conditions.Append('\n');
+                if (conditions.Length > 0)
+                {
+                    conditions.Append('\n');
+                }
+
                 conditions.Append(sectionText);
             }
         }
@@ -1132,7 +1174,11 @@ public sealed class HhParser
                 var blockText = GetTextWithBreaks(current);
                 if (!string.IsNullOrWhiteSpace(blockText))
                 {
-                    if (sb.Length > 0) sb.Append('\n');
+                    if (sb.Length > 0)
+                    {
+                        sb.Append('\n');
+                    }
+
                     sb.Append(blockText);
                 }
 
@@ -1288,6 +1334,37 @@ public sealed class HhParser
             return true;
         }
 
+        return false;
+    }
+
+    private static readonly string[] RequirementsPrefixes =
+    {
+        "требования", "необходимые навыки", "вы нам подходите", "наши ожидания", "стек технологий",
+        "что мы ждём", "мы ищем кандидата", "чего мы ждем", "чего мы ждём", "ожидаем",
+        "кто нам подходит", "кого мы ищем", "мы ждём", "наши требования", "что мы ожидаем",
+        "будет плюсом", "желательно", "преимуществом"
+    };
+
+    private static readonly string[] ResponsibilitiesPrefixes =
+    {
+        "обязанности", "что предстоит делать", "вам предстоит", "задачи", "чем предстоит заниматься",
+        "что делать", "что нужно делать", "что надо делать", "обязанности и задачи"
+    };
+
+    private static readonly string[] ConditionsPrefixes =
+    {
+        "условия", "что мы предлагаем", "мы предлагаем", "условия работы", "условия труда", "что предлагаем"
+    };
+
+    private static bool MatchesAnyPrefix(string text, string[] prefixes)
+    {
+        foreach (var prefix in prefixes)
+        {
+            if (text.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -1614,7 +1691,7 @@ public sealed class HhParser
     /// <summary>
     /// Fetches a URL with one retry after 2 seconds on HttpRequestException or TaskCanceledException.
     /// </summary>
-    private async Task<string> FetchWithRetryAsync(string url)
+    private static async Task<string> FetchWithRetryAsync(string url)
     {
         try
         {
@@ -1794,7 +1871,7 @@ public sealed class HhParser
                     var after = textAfter.Substring(idx + headerText.Length).Trim();
                     var skillsPart = after.Length > 300 ? after[..300] : after;
                     var skills = skillsPart
-                        .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Split(SentenceSeparators, StringSplitOptions.RemoveEmptyEntries)
                         .Select(s => s.Trim())
                         .Where(s => !string.IsNullOrWhiteSpace(s))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1899,7 +1976,11 @@ public sealed class HhParser
 
         public int Percent(int count)
         {
-            if (Total == 0) return 0;
+            if (Total == 0)
+            {
+                return 0;
+            }
+
             return (int)Math.Round(count * 100.0 / Total);
         }
 
@@ -1923,11 +2004,30 @@ public sealed class HhParser
 
             foreach (var v in vacancies)
             {
-                if (!string.IsNullOrWhiteSpace(v.Requirements)) summary.WithRequirements++;
-                if (!string.IsNullOrWhiteSpace(v.Responsibilities)) summary.WithResponsibilities++;
-                if (v.KeySkills.Count > 0) summary.WithKeySkills++;
-                if (!string.IsNullOrWhiteSpace(v.Conditions)) summary.WithConditions++;
-                if (string.IsNullOrWhiteSpace(v.Requirements)) summary.DescriptionFallback++;
+                if (!string.IsNullOrWhiteSpace(v.Requirements))
+                {
+                    summary.WithRequirements++;
+                }
+
+                if (!string.IsNullOrWhiteSpace(v.Responsibilities))
+                {
+                    summary.WithResponsibilities++;
+                }
+
+                if (v.KeySkills.Count > 0)
+                {
+                    summary.WithKeySkills++;
+                }
+
+                if (!string.IsNullOrWhiteSpace(v.Conditions))
+                {
+                    summary.WithConditions++;
+                }
+
+                if (string.IsNullOrWhiteSpace(v.Requirements))
+                {
+                    summary.DescriptionFallback++;
+                }
             }
 
             return summary;

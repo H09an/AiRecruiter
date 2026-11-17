@@ -17,3 +17,9 @@ parse_*.txt
 real_run_*.txt
 replay_*.txt
 app.log.*
+*.orig
+*.rej
+.vs/
+.idea/
+*.user
+TestResults/

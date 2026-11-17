@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="AiRecruiter.csproj" />
+  <Project Path="src/AiRecruiter/AiRecruiter.csproj" />
   <Folder Name="/tests/">
     <Project Path="tests/AiRecruiter.Tests/AiRecruiter.Tests.csproj" />
   </Folder>

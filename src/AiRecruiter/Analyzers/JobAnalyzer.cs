@@ -8,27 +8,27 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.Configuration;
 using AiRecruiter.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace AiRecruiter.Analyzers;
 
 public sealed class AnalysisResult
 {
-    public int Score;
-    public string Comment = string.Empty;
-    public string CoverLetter = string.Empty;
-    public List<string> MustHaveMet = new();
-    public List<string> MustHaveMissing = new();
-    public List<string> NiceToHaveMissing = new();
-    public string? EnglishRequired;
-    public List<string> RedFlags = new();
-    public List<string> Assumptions = new();
-    public int? MustHaveScore;
-    public int? NiceToHaveScore;
-    public int? SeniorityScore;
-    public int? EnglishScore;
-    public double? WeightedScore;
+    public int Score { get; init; }
+    public string Comment { get; set; } = string.Empty;
+    public string CoverLetter { get; init; } = string.Empty;
+    public IReadOnlyList<string> MustHaveMet { get; init; } = new List<string>();
+    public List<string> MustHaveMissing { get; set; } = new();
+    public List<string> NiceToHaveMissing { get; set; } = new();
+    public string? EnglishRequired { get; set; }
+    public List<string> RedFlags { get; set; } = new();
+    public IReadOnlyList<string> Assumptions { get; init; } = new List<string>();
+    public int? MustHaveScore { get; init; }
+    public int? NiceToHaveScore { get; init; }
+    public int? SeniorityScore { get; init; }
+    public int? EnglishScore { get; set; }
+    public double? WeightedScore { get; init; }
 }
 
 /// <summary>
@@ -70,6 +70,13 @@ public sealed class JobAnalyzer
     private static int _jsonFailureCount;
     private static readonly Queue<int> _scoreHistory = new();
     private static readonly Random _retryRandom = new();
+    private static readonly HttpClient _http;
+    private static readonly JsonSerializerOptions DtoJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    static JobAnalyzer()
+    {
+        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+    }
 
     private readonly string _authKey;
     private readonly string _resumeText;
@@ -80,7 +87,6 @@ public sealed class JobAnalyzer
     private readonly double _temperature;
     private readonly double _topP;
     private readonly int _maxTokens;
-    private readonly HttpClient _http;
     private string? _accessToken;
 
     public JobAnalyzer(string apiKey, string resumeText, string profileText, string contacts, IConfiguration? config = null)
@@ -94,7 +100,6 @@ public sealed class JobAnalyzer
         _temperature = ReadDoubleConfig(config, "GigaChat:Temperature", 0.15, 0.0, 2.0);
         _topP = ReadDoubleConfig(config, "GigaChat:TopP", 0.9, 0.0, 1.0);
         _maxTokens = ReadIntConfig(config, "GigaChat:MaxTokens", 800, 1, 8192);
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
     }
 
     private static double ReadDoubleConfig(IConfiguration? config, string key, double defaultValue, double min, double max)
@@ -178,7 +183,7 @@ public sealed class JobAnalyzer
 
         using var oauthRequest = new HttpRequestMessage(HttpMethod.Post, "https://ngw.devices.sberbank.ru:9443/api/v2/oauth");
         oauthRequest.Headers.Authorization = new AuthenticationHeaderValue("Basic", _authKey);
-        oauthRequest.Headers.TryAddWithoutValidation("RqUID", Guid.NewGuid().ToString("D").ToLower());
+        oauthRequest.Headers.TryAddWithoutValidation("RqUID", Guid.NewGuid().ToString("D").ToLowerInvariant());
 
         var formData = new Dictionary<string, string>
         {
@@ -334,9 +339,21 @@ public sealed class JobAnalyzer
 
         var userPrompt = BuildUserPrompt(vacancy);
         var missingSections = new List<string>();
-        if (string.IsNullOrWhiteSpace(vacancy.Requirements)) missingSections.Add("Requirements");
-        if (string.IsNullOrWhiteSpace(vacancy.Responsibilities)) missingSections.Add("Responsibilities");
-        if (string.IsNullOrWhiteSpace(vacancy.Conditions)) missingSections.Add("Conditions");
+        if (string.IsNullOrWhiteSpace(vacancy.Requirements))
+        {
+            missingSections.Add("Requirements");
+        }
+
+        if (string.IsNullOrWhiteSpace(vacancy.Responsibilities))
+        {
+            missingSections.Add("Responsibilities");
+        }
+
+        if (string.IsNullOrWhiteSpace(vacancy.Conditions))
+        {
+            missingSections.Add("Conditions");
+        }
+
         var missingSectionsStr = missingSections.Count == 0 ? "none" : string.Join(",", missingSections);
         Logger.Log($"[GigaChat] Поля вакансии: experience={vacancy.Experience} | salary={vacancy.Salary} | requirements={vacancy.Requirements.Length} | responsibilities={vacancy.Responsibilities.Length} | conditions={vacancy.Conditions.Length} | keySkills={vacancy.KeySkills.Count} | missingSections={missingSectionsStr} | descriptionFallback={string.IsNullOrWhiteSpace(vacancy.Requirements)}");
 
@@ -478,39 +495,11 @@ public sealed class JobAnalyzer
             return;
         }
 
-        Logger.Log($"[GigaChat] rubric_scores: must_have_score={result.MustHaveScore?.ToString() ?? "—"} | nice_to_have_score={result.NiceToHaveScore?.ToString() ?? "—"} | seniority_score={result.SeniorityScore?.ToString() ?? "—"} | english_score={result.EnglishScore?.ToString() ?? "—"} | weighted_score={result.WeightedScore?.ToString("F1") ?? "—"} | final_score={result.Score} | {vacancy.Link}");
+        Logger.Log($"[GigaChat] rubric_scores: must_have_score={result.MustHaveScore?.ToString(CultureInfo.InvariantCulture) ?? "—"} | nice_to_have_score={result.NiceToHaveScore?.ToString(CultureInfo.InvariantCulture) ?? "—"} | seniority_score={result.SeniorityScore?.ToString(CultureInfo.InvariantCulture) ?? "—"} | english_score={result.EnglishScore?.ToString(CultureInfo.InvariantCulture) ?? "—"} | weighted_score={result.WeightedScore?.ToString("F1", CultureInfo.InvariantCulture) ?? "—"} | final_score={result.Score} | {vacancy.Link}");
 
-        bool redFlagsExplainGap = result.RedFlags.Count > 0 && result.MustHaveScore is >= 5;
-
-        if (result.WeightedScore is double weighted
-            && Math.Abs(result.Score - Math.Round(weighted)) > 1)
+        foreach (var contradiction in GetContradictions(result))
         {
-            Logger.Log($"[GigaChat] Несогласованный rubric_scores: final_score={result.Score}, weighted_score={weighted:F1} | {vacancy.Link}");
-        }
-
-        if (result.Score >= 8 && result.MustHaveMissing.Count > 0)
-        {
-            Logger.Log($"[GigaChat] Противоречие: final_score={result.Score}, но must_have_missing_count={result.MustHaveMissing.Count} | {vacancy.Link}");
-        }
-
-        if (result.Score <= 4 && result.MustHaveMissing.Count == 0 && !redFlagsExplainGap)
-        {
-            Logger.Log($"[GigaChat] Противоречие: final_score={result.Score}, но must_have_missing_count=0 | {vacancy.Link}");
-        }
-
-        if (result.MustHaveMissing.Count == 0 && result.MustHaveScore is < 8 && !redFlagsExplainGap)
-        {
-            Logger.Log($"[GigaChat] Противоречие: must_have_missing_count=0, но must_have_score={result.MustHaveScore} | {vacancy.Link}");
-        }
-
-        if (result.MustHaveMissing.Count > 0 && result.MustHaveScore is > 7)
-        {
-            Logger.Log($"[GigaChat] Противоречие: must_have_missing_count={result.MustHaveMissing.Count}, но must_have_score={result.MustHaveScore} | {vacancy.Link}");
-        }
-
-        if (result.EnglishRequired is null && result.EnglishScore is not null)
-        {
-            Logger.Log($"[GigaChat] english_score указан без english_required — сброшен | {vacancy.Link}");
+            Logger.Log($"[GigaChat] Противоречие: {contradiction} | {vacancy.Link}");
         }
     }
 
@@ -628,16 +617,24 @@ public sealed class JobAnalyzer
         var skillsStart = summary.IndexOf("Навыки (уровень из резюме):", StringComparison.OrdinalIgnoreCase);
         if (skillsStart >= 0)
         {
-            var skillsEnd = summary.IndexOf("\n\n", skillsStart);
-            if (skillsEnd < 0) skillsEnd = summary.Length;
+            var skillsEnd = summary.IndexOf("\n\n", skillsStart, StringComparison.Ordinal);
+            if (skillsEnd < 0)
+            {
+                skillsEnd = summary.Length;
+            }
+
             result.AppendLine(summary[skillsStart..skillsEnd].TrimEnd());
         }
 
         var toolsStart = summary.IndexOf("Инструменты и технологии (уровень из резюме):", StringComparison.OrdinalIgnoreCase);
         if (toolsStart >= 0)
         {
-            var toolsEnd = summary.IndexOf("\n\n", toolsStart);
-            if (toolsEnd < 0) toolsEnd = summary.Length;
+            var toolsEnd = summary.IndexOf("\n\n", toolsStart, StringComparison.Ordinal);
+            if (toolsEnd < 0)
+            {
+                toolsEnd = summary.Length;
+            }
+
             result.AppendLine(summary[toolsStart..toolsEnd].TrimEnd());
         }
 
@@ -648,7 +645,7 @@ public sealed class JobAnalyzer
     {
         if (!string.IsNullOrWhiteSpace(value))
         {
-            sb.AppendLine($"{label}: {value}");
+            sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}: {1}", label, value));
         }
     }
 
@@ -813,8 +810,7 @@ public sealed class JobAnalyzer
             GigaChatAnalysisDto? candidate;
             try
             {
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                candidate = JsonSerializer.Deserialize<GigaChatAnalysisDto>(json, options);
+                candidate = JsonSerializer.Deserialize<GigaChatAnalysisDto>(json, DtoJsonOptions);
             }
             catch (JsonException ex)
             {
@@ -1012,32 +1008,46 @@ public sealed class JobAnalyzer
         }
         else
         {
-            score = int.Parse(scoreEl.GetString()!.Trim());
+            score = int.Parse(scoreEl.GetString()!.Trim(), CultureInfo.InvariantCulture);
         }
 
-        var result = new AnalysisResult { Score = score };
-        result.Comment = dto.Comment ?? string.Empty;
-
-        result.MustHaveMet = ExtractStringArray(dto.MustHaveMet);
-        result.MustHaveMissing = ExtractStringArray(dto.MustHaveMissing);
-        result.NiceToHaveMissing = ExtractStringArray(dto.NiceToHaveMissing);
-        result.EnglishRequired = dto.EnglishRequired;
-        result.RedFlags = ExtractStringArray(dto.RedFlags);
-        result.Assumptions = ExtractStringArray(dto.Assumptions);
+        // Compute scoring values before object initializer (init-only properties)
+        int? mustHaveScore = null;
+        int? niceToHaveScore = null;
+        int? seniorityScore = null;
+        int? englishScore = null;
+        double? weightedScore = null;
 
         if (dto.Scoring is { ValueKind: JsonValueKind.Object } scoring)
         {
-            result.MustHaveScore = GetIntOrNull(scoring, "must_have");
-            result.NiceToHaveScore = GetIntOrNull(scoring, "nice_to_have");
-            result.SeniorityScore = GetIntOrNull(scoring, "seniority");
-            result.EnglishScore = GetIntOrNull(scoring, "english");
-            result.WeightedScore = GetDoubleOrNull(scoring, "weighted");
+            mustHaveScore = GetIntOrNull(scoring, "must_have");
+            niceToHaveScore = GetIntOrNull(scoring, "nice_to_have");
+            seniorityScore = GetIntOrNull(scoring, "seniority");
+            englishScore = GetIntOrNull(scoring, "english");
+            weightedScore = GetDoubleOrNull(scoring, "weighted");
 
-            if (result.EnglishRequired is null)
+            if (dto.EnglishRequired is null)
             {
-                result.EnglishScore = null;
+                englishScore = null;
             }
         }
+
+        var result = new AnalysisResult
+        {
+            Score = score,
+            Comment = dto.Comment ?? string.Empty,
+            MustHaveMet = ExtractStringArray(dto.MustHaveMet),
+            MustHaveMissing = ExtractStringArray(dto.MustHaveMissing),
+            NiceToHaveMissing = ExtractStringArray(dto.NiceToHaveMissing),
+            EnglishRequired = dto.EnglishRequired,
+            RedFlags = ExtractStringArray(dto.RedFlags),
+            Assumptions = ExtractStringArray(dto.Assumptions),
+            MustHaveScore = mustHaveScore,
+            NiceToHaveScore = niceToHaveScore,
+            SeniorityScore = seniorityScore,
+            EnglishScore = englishScore,
+            WeightedScore = weightedScore,
+        };
 
         return result;
     }
@@ -1047,7 +1057,7 @@ public sealed class JobAnalyzer
     /// пункты, которые в тексте вакансии помечены как желательные (не обязательные).
     /// Проверка идёт по маркерам желательности в тексте вакансии, без хардкода навыков.
     /// </summary>
-    private static void ReclassifyDesirableMissing(AnalysisResult result, Vacancy vacancy)
+    internal static void ReclassifyDesirableMissing(AnalysisResult result, Vacancy vacancy)
     {
         var vacancyText = (vacancy.Requirements ?? string.Empty) + "\n" + (vacancy.Description ?? string.Empty);
         var vacancyTextLower = vacancyText.ToLowerInvariant();
@@ -1095,6 +1105,48 @@ public sealed class JobAnalyzer
             }
             Logger.Log($"[GigaChat] Перенесено в nice_to_have_missing: {item} | причина=в вакансии помечено как желательное | {vacancy.Link}");
         }
+    }
+
+    /// <summary>
+    /// Возвращает список противоречий между полями анализа, не логируя их.
+    /// </summary>
+    internal static IReadOnlyList<string> GetContradictions(AnalysisResult result)
+    {
+        var contradictions = new List<string>();
+        bool redFlagsExplainGap = result.RedFlags.Count > 0 && result.MustHaveScore is >= 5;
+
+        if (result.WeightedScore is double weighted
+            && Math.Abs(result.Score - Math.Round(weighted)) > 1)
+        {
+            contradictions.Add($"Несогласованный rubric_scores: final_score={result.Score}, weighted_score={weighted:F1}");
+        }
+
+        if (result.Score >= 8 && result.MustHaveMissing.Count > 0)
+        {
+            contradictions.Add($"Противоречие: final_score={result.Score}, но must_have_missing_count={result.MustHaveMissing.Count}");
+        }
+
+        if (result.Score <= 4 && result.MustHaveMissing.Count == 0 && !redFlagsExplainGap)
+        {
+            contradictions.Add($"Противоречие: final_score={result.Score}, но must_have_missing_count=0");
+        }
+
+        if (result.MustHaveMissing.Count == 0 && result.MustHaveScore is < 8 && !redFlagsExplainGap)
+        {
+            contradictions.Add($"Противоречие: must_have_missing_count=0, но must_have_score={result.MustHaveScore}");
+        }
+
+        if (result.MustHaveMissing.Count > 0 && result.MustHaveScore is > 7)
+        {
+            contradictions.Add($"Противоречие: must_have_missing_count={result.MustHaveMissing.Count}, но must_have_score={result.MustHaveScore}");
+        }
+
+        if (result.EnglishRequired is null && result.EnglishScore is not null)
+        {
+            contradictions.Add("english_score указан без english_required");
+        }
+
+        return contradictions;
     }
 
     private static List<string> ExtractStringArray(JsonElement? el)
@@ -1200,7 +1252,7 @@ public sealed class JobAnalyzer
         {
             if (lower.Contains(wl))
             {
-                return char.ToUpper(wl[0]) + wl.Substring(1);
+                return char.ToUpperInvariant(wl[0]) + wl.Substring(1);
             }
         }
 
@@ -1473,7 +1525,7 @@ public sealed class JobAnalyzer
 
         // Одиночные обратные кавычки по краям
         result = result.Trim();
-        if (result.StartsWith("`") && result.EndsWith("`") && result.Length > 1)
+        if (result.StartsWith('`') && result.EndsWith('`') && result.Length > 1)
         {
             result = result[1..^1].Trim();
         }
@@ -1484,11 +1536,11 @@ public sealed class JobAnalyzer
         {
             result = result[4..].Trim();
         }
-        if (result.StartsWith("**") && result.EndsWith("**"))
+        if (result.StartsWith("**", StringComparison.Ordinal) && result.EndsWith("**", StringComparison.Ordinal))
         {
             result = result[2..^2].Trim();
         }
-        if (result.StartsWith("\"") && result.EndsWith("\"") && result.Length > 1)
+        if (result.StartsWith('"') && result.EndsWith('"') && result.Length > 1)
         {
             result = result[1..^1].Trim();
         }
@@ -1642,7 +1694,7 @@ public sealed class JobAnalyzer
             }
 
             var safeLink = vacancy.Link.Replace("/", "_").Replace(":", "_").Replace("?", "_");
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff", CultureInfo.InvariantCulture);
             var fileName = $"{timestamp}_{safeLink}.txt";
             var path = Path.Combine(dir, fileName);
 
