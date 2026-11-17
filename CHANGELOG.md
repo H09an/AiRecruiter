@@ -7,11 +7,23 @@
 ## [Unreleased]
 <!-- Следующий этап: добавьте записи сюда до тега. -->
 
+## [3.1] - 2026-11-17
+
 ### Добавлено
 - Предфильтр вакансий по зарплате (`Filters:MinSalary`).
-- Предфильтр по стоп-словам в заголовке до GigaChat.
-- Порог оценки `Analyzer:MinScore` и калибровочная статистика.
-- Состояние вакансий в SQLite (`vacancies.db`).
+- Предфильтр по стоп-словам в заголовке до GigaChat (`Filters:ExcludeTitleWords`).
+- Порог оценки `Analyzer:MinScore` и калибровочная статистика (гистограмма в `[ИТОГ]`).
+- Состояние вакансий в SQLite (`vacancies.db`) с миграцией из `seen_vacancies.txt`.
+- Повтор отправки из сохранённого результата (`send_failed`, `analyzed_ok`) без повторного анализа.
+- Колонки `comment`, `cover_letter`, `tech_stack` в таблице `vacancies`.
+
+### Изменено
+- Фильтр стажировок перенесён из `TelegramNotifier` в предфильтр по заголовку.
+- `analysis_failed` не блокирует вакансию: она переанализируется при следующем появлении в выдаче.
+- Правило в промпте оценки: не выводить уровень кандидата из общего стажа.
+- Лимит сводки кандидата `candidate_summary.md` поднят до 4000 символов.
+- Ужесточён разбор чисел в `SalaryFilter`: группы по три цифры, без склейки соседних чисел.
+- Добавлен `AGENTS.md`: рамка процесса для агентов и журнал решений.
 
 ## [2.7] - 2026-11-16
 
@@ -89,13 +101,14 @@
 
 ## Ссылки
 
-- [Unreleased]: https://github.com/H09an/AiRecruiter/compare/stage-2.7-canon...HEAD
+- [Unreleased]: https://github.com/H09an/AiRecruiter/compare/stage-3.1-core...HEAD
+- [3.1]: https://github.com/H09an/AiRecruiter/compare/stage-2.7-canon...stage-3.1-core
 - [2.7]: https://github.com/H09an/AiRecruiter/compare/stage-2.6-infra...stage-2.7-canon
 - [2.6]: https://github.com/H09an/AiRecruiter/compare/stage-2.5.1-done...stage-2.6-infra
 - [2.5.1]: https://github.com/H09an/AiRecruiter/compare/stage-2.5-done...stage-2.5.1-done
 - [2.5]: https://github.com/H09an/AiRecruiter/compare/stage-2-done...stage-2.5-done
-- [2.0]: https://github.com/H09an/AiRecruiter/compare/36630af...stage-2-done
-- [1.0]: https://github.com/H09an/AiRecruiter/commit/36630af
+- [2.0]: https://github.com/H09an/AiRecruiter/compare/4cabd92...stage-2-done
+- [1.0]: https://github.com/H09an/AiRecruiter/commit/4cabd92
 
 Правило: в каждый следующий этап CHANGELOG дополняется в том коммите,
 что и тег.
