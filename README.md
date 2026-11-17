@@ -98,6 +98,7 @@ AiRecruiter/
 ├── src/AiRecruiter/          # код приложения
 │   ├── Analyzers/            # оценка вакансий через GigaChat
 │   ├── Configuration/        # чтение настроек
+│   ├── Filters/              # предфильтры (зарплата)
 │   ├── Models/               # модели данных
 │   ├── Notifiers/            # отправка в Telegram
 │   └── Parsers/              # парсинг страниц hh.ru
@@ -164,7 +165,7 @@ dotnet test AiRecruiter.slnx
 - `JobAnalyzerDtoTests` — контракт разбора JSON-ответа GigaChat.
 - `IntConfigReaderTests` — чтение целых чисел из конфигурации.
 
-Всего 44 теста.
+Всего 58 тестов.
 
 ## Разработка
 
