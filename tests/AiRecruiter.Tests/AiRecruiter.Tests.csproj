@@ -19,8 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Реальные страницы hh.ru — регрессия парсера на смену вёрстки. -->
-    <None Include="../../samples/**/*.html" LinkBase="samples" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Синтетические фикстуры с разметкой hh.ru — регрессия парсера. -->
+    <None Include="../Fixtures/**/*.html" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

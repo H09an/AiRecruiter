@@ -3,24 +3,25 @@ using AiRecruiter.Parsers;
 namespace AiRecruiter.Tests;
 
 /// <summary>
-/// Регрессия парсера на сохранённых страницах hh.ru (замена ручного --parse-samples).
-/// Если hh.ru сменит вёрстку — обновите sample и ожидания.
+/// Регрессия парсера на синтетических фикстурах с разметкой hh.ru.
+/// Реальные страницы hh.ru в репозиторий не входят — проверяйте их локально
+/// через --parse-samples и обновляйте ожидания при смене вёрстки.
 /// </summary>
 public class HhParserTests
 {
     [Theory]
-    [InlineData("sample_5_qa_sursk_xoxwe.html", 348, 409, 249, 1485, 7, 0, "70 000 ₽ за месяц, на руки")]
-    [InlineData("sample_9_qa_itl_consulting.html", 2119, 687, 470, 3992, 2, 0, "не указана")]
-    [InlineData("sample_10_qa_gear_games.html", 766, 0, 662, 2407, 8, 212, "от 60 000")]
-    [InlineData("sample_11_qa_middle_senior_moscow.html", 418, 557, 563, 0, 7, 0)]
-    [InlineData("sample_12_manual_qa_moscow.html", 516, 397, 0)]
-    [InlineData("sample_13_qa_intern_modulbank.html", 335, 0, 490)]
+    [InlineData("full.html", 135, 142, 150, 542, 3, 34, "от 100 000")]
+    [InlineData("no_salary.html", 135, 76, 0, 326, 2, 0)]
+    [InlineData("no_skills.html", 111, 114, 110, 448, 0, 0, "150 000")]
+    [InlineData("only_requirements.html", 112, 0, 0, 227, 0, 0)]
+    [InlineData("plain_description.html", 222, 0, 0, 222, 0, 0)]
+    [InlineData("conditions_only.html", 224, 0, 110, 224, 0, 0)]
     public async Task ParseVacancyHtml_ExtractsCorrectFields(
         string file, int requirements, int responsibilities, int conditions,
         int descriptionLength = 0, int keySkillsCount = 0, int techStackLength = 0,
         string? expectedSalary = null)
     {
-        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", file));
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", file));
         var vacancy = await HhParser.ParseVacancyHtmlAsync(html, file);
 
         Assert.Equal(requirements, vacancy.Requirements.Length);
@@ -42,73 +43,73 @@ public class HhParserTests
     }
 
     [Fact]
-    public async Task ParseVacancyHtml_Sample10_TechStackContainsCucumberAndUnity()
+    public async Task FixtureFull_TechStackContainsPytestAndDocker()
     {
-        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", "sample_10_qa_gear_games.html"));
-        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "sample_10_qa_gear_games.html");
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "full.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "full.html");
 
-        Assert.Equal(212, vacancy.TechStack.Length);
-        Assert.Contains("Cucumber", vacancy.TechStack);
-        Assert.Contains("Unity", vacancy.TechStack);
+        Assert.Equal(34, vacancy.TechStack.Length);
+        Assert.Contains("pytest", vacancy.TechStack);
+        Assert.Contains("Docker", vacancy.TechStack);
     }
 
     [Fact]
-    public async Task ParseVacancyHtml_Sample5And9_TechStackIsEmpty()
+    public async Task FixturesWithoutTechStack_TechStackIsEmpty()
     {
-        var html5 = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", "sample_5_qa_sursk_xoxwe.html"));
-        var vacancy5 = await HhParser.ParseVacancyHtmlAsync(html5, "sample_5_qa_sursk_xoxwe.html");
+        var htmlNoSalary = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "no_salary.html"));
+        var vacancyNoSalary = await HhParser.ParseVacancyHtmlAsync(htmlNoSalary, "no_salary.html");
 
-        var html9 = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", "sample_9_qa_itl_consulting.html"));
-        var vacancy9 = await HhParser.ParseVacancyHtmlAsync(html9, "sample_9_qa_itl_consulting.html");
+        var htmlOnlyRequirements = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "only_requirements.html"));
+        var vacancyOnlyRequirements = await HhParser.ParseVacancyHtmlAsync(htmlOnlyRequirements, "only_requirements.html");
 
-        Assert.Equal(string.Empty, vacancy5.TechStack);
-        Assert.Equal(string.Empty, vacancy9.TechStack);
+        Assert.Equal(string.Empty, vacancyNoSalary.TechStack);
+        Assert.Equal(string.Empty, vacancyOnlyRequirements.TechStack);
     }
 
     [Fact]
-    public async Task ParseVacancyHtml_Sample5_SalaryIsCorrect()
+    public async Task FixtureFull_SalaryIsCorrect()
     {
-        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", "sample_5_qa_sursk_xoxwe.html"));
-        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "sample_5_qa_sursk_xoxwe.html");
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "full.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "full.html");
 
-        Assert.Equal("70 000 ₽ за месяц, на руки", vacancy.Salary);
+        Assert.Equal("от 100 000 ₽ за месяц на руки", vacancy.Salary);
     }
 
     [Fact]
-    public async Task ParseVacancyHtml_Sample9_SalaryIsCorrect()
+    public async Task FixtureNoSalary_SalaryIsNotSpecified()
     {
-        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", "sample_9_qa_itl_consulting.html"));
-        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "sample_9_qa_itl_consulting.html");
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "no_salary.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "no_salary.html");
 
         Assert.Equal("не указана", vacancy.Salary);
     }
 
     [Fact]
-    public async Task ParseVacancyHtml_Sample10_SalaryStartsWithExpected()
+    public async Task FixtureNoSkills_SalaryStartsWithExpected()
     {
-        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", "sample_10_qa_gear_games.html"));
-        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "sample_10_qa_gear_games.html");
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "no_skills.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "no_skills.html");
 
-        Assert.StartsWith("от 60 000", vacancy.Salary);
+        Assert.StartsWith("150 000", vacancy.Salary);
     }
 
     [Fact]
-    public async Task ParseVacancyHtml_Sample10_ResponsibilitiesEmptyConditionsNotEmpty()
+    public async Task FixtureConditionsOnly_ResponsibilitiesEmptyConditionsNotEmpty()
     {
-        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", "sample_10_qa_gear_games.html"));
-        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "sample_10_qa_gear_games.html");
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "conditions_only.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "conditions_only.html");
 
         Assert.Equal(0, vacancy.Responsibilities.Length);
         Assert.False(string.IsNullOrWhiteSpace(vacancy.Conditions));
     }
 
     [Fact]
-    public async Task ParseVacancyHtml_Sample10_KeySkillsContainsPythonAndCSharp()
+    public async Task FixtureFull_KeySkillsContainsSqlAndPython()
     {
-        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "samples", "sample_10_qa_gear_games.html"));
-        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "sample_10_qa_gear_games.html");
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "full.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "full.html");
 
+        Assert.Contains("SQL", vacancy.KeySkills);
         Assert.Contains("Python", vacancy.KeySkills);
-        Assert.Contains("C#", vacancy.KeySkills);
     }
 }

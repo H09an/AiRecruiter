@@ -101,7 +101,8 @@ AiRecruiter/
 │   ├── Notifiers/            # отправка в Telegram
 │   └── Parsers/              # парсинг страниц hh.ru
 ├── tests/AiRecruiter.Tests/  # тесты xUnit
-├── samples/                  # примеры HTML-страниц hh.ru для регрессии
+├── tests/Fixtures/           # синтетические фикстуры парсера
+├── samples/                  # ваши HTML-страницы hh.ru (не коммитится)
 ├── .github/workflows/        # CI (GitHub Actions)
 ├── appsettings.json          # конфигурация (не коммитится)
 ├── appsettings.example.json  # пример конфигурации
@@ -129,6 +130,14 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --parse-samples sampl
 dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --replay-failed failed_responses
 ```
 
+`--parse-samples` читает любую папку с HTML-страницами hh.ru. Реальные страницы в
+репозиторий не входят: сохраните нужные вакансии в `samples/` — папка указана в
+`.gitignore`. Быстрая проверка на синтетических фикстурах:
+
+```sh
+dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --parse-samples tests/Fixtures
+```
+
 Лог — `app.log`; при превышении 5 МБ файл очищается.
 
 ## Решение проблем
@@ -149,7 +158,7 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --replay-failed faile
 dotnet test AiRecruiter.slnx
 ```
 
-- `HhParserTests` — регрессия парсера на страницах из `samples/`. После смены вёрстки hh.ru добавьте свежий sample и обновите ожидания.
+- `HhParserTests` — регрессия парсера на синтетических фикстурах из `tests/Fixtures/`. Реальные страницы hh.ru проверяйте локально через `--parse-samples` и обновляйте ожидания при смене вёрстки.
 - `JobAnalyzerDtoTests` — контракт разбора JSON-ответа GigaChat.
 - `IntConfigReaderTests` — чтение целых чисел из конфигурации.
 
