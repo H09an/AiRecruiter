@@ -95,8 +95,11 @@ internal static partial class SalaryFilter
         return lowerBound.Value < minSalary;
     }
 
-    /// <summary>Первое число: цифры, внутри которых могут быть пробелы.</summary>
-    [GeneratedRegex(@"[0-9](?:[0-9 ]*[0-9])?", RegexOptions.CultureInvariant)]
+    /// <summary>
+    /// Первое число: группы по три цифры через пробел или сплошные цифры.
+    /// Не склеивает соседние числа («100 000 2» → 100000, а не 1000002).
+    /// </summary>
+    [GeneratedRegex(@"(?<![0-9])(?:[0-9]{1,3}(?: [0-9]{3})+|[0-9]+)(?![0-9])", RegexOptions.CultureInvariant)]
     private static partial Regex FirstNumberRegex();
 
     /// <summary>Любая последовательность пробельных символов.</summary>

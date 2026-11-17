@@ -165,7 +165,7 @@ dotnet test AiRecruiter.slnx
 - `JobAnalyzerDtoTests` — контракт разбора JSON-ответа GigaChat.
 - `IntConfigReaderTests` — чтение целых чисел из конфигурации.
 
-Всего 58 тестов.
+Всего 59 тестов.
 
 ## Разработка
 

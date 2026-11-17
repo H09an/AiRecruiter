@@ -101,4 +101,12 @@ public class SalaryFilterTests
     {
         Assert.Null(SalaryFilter.TryParseLowerBoundRub("2 500 000 000 ₽"));
     }
+
+    [Fact]
+    public void TryParse_DoesNotGlueAdjacentNumbers()
+    {
+        Assert.Equal(100000, SalaryFilter.TryParseLowerBoundRub("100 000 2 раза в неделю, оплата в рублях"));
+        Assert.Equal(70000, SalaryFilter.TryParseLowerBoundRub("70000 ₽"));
+        Assert.Equal(1000000, SalaryFilter.TryParseLowerBoundRub("1 000 000 ₽"));
+    }
 }
