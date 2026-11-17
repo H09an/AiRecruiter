@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using AiRecruiter.Analyzers;
 using AiRecruiter.Configuration;
+using AiRecruiter.Filters;
 using AiRecruiter.Models;
 using AiRecruiter.Notifiers;
 using AiRecruiter.Parsers;
@@ -210,6 +211,7 @@ public sealed class Program
             int responsibilitiesPercent = IntConfigReader.Read(config, "HhParser:Thresholds:ResponsibilitiesPercent", 10);
             int keySkillsPercent = IntConfigReader.Read(config, "HhParser:Thresholds:KeySkillsPercent", 10);
             int conditionsPercent = IntConfigReader.Read(config, "HhParser:Thresholds:ConditionsPercent", 10);
+            int minSalary = IntConfigReader.Read(config, "Filters:MinSalary", 0);
 
             var warnings = new List<string>();
 
@@ -274,6 +276,8 @@ public sealed class Program
                 Logger.Log("[HhParser] ALERT отправлен в Telegram.");
             }
 
+            int salaryFiltered = 0;
+
             foreach (var vacancy in vacancies)
             {
                 if (stopCts.IsCancellationRequested)
@@ -285,6 +289,14 @@ public sealed class Program
                 if (seenVacancies.Contains(vacancy.Link))
                 {
                     Logger.Log($"[Пропущено] Уже видели: {vacancy.Link}");
+                    continue;
+                }
+
+                int? salaryLowerBound = SalaryFilter.TryParseLowerBoundRub(vacancy.Salary);
+                if (salaryLowerBound is int lowerBound && SalaryFilter.ShouldSkip(vacancy.Salary, minSalary))
+                {
+                    Logger.Log($"[Пропущено] Зарплата ниже порога ({lowerBound} < {minSalary}): {vacancy.Title} | {vacancy.Link}");
+                    salaryFiltered++;
                     continue;
                 }
 
@@ -320,6 +332,11 @@ public sealed class Program
                 {
                     Logger.Log($"[Ошибка анализа] {vacancy.Title} | {vacancy.Link}: {ex}");
                 }
+            }
+
+            if (salaryFiltered > 0)
+            {
+                Logger.Log($"[ИТОГ] Отфильтровано по зарплате: {salaryFiltered}");
             }
 
             var jsonFailures = JobAnalyzer.GetJsonFailureCount();
