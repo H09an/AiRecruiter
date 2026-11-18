@@ -14,7 +14,7 @@
 6. `workFormat`: area `113` → REMOTE, area `4` → любой, иначе REMOTE — [Program.cs:176-188](../src/AiRecruiter/Program.cs#L176-L188).
 7. Инициализация хранилища `vacancies.db` — [Program.cs:191-192](../src/AiRecruiter/Program.cs#L191-L192).
 8. Миграция `seen_vacancies.txt` → vacancies со статусом `seen`, файл переименовывается — [Program.cs:194-220](../src/AiRecruiter/Program.cs#L194-L220).
-9. Порог `Analyzer:MinScore` (по умолчанию 7) — [Program.cs:222](../src/AiRecruiter/Program.cs#L222).
+9. Порог `Analyzer:MinScore` (по умолчанию 3) — [Program.cs:222](../src/AiRecruiter/Program.cs#L222).
 10. `GetLinksToSkip()` — уже обработанные ссылки из БД — [Program.cs:224](../src/AiRecruiter/Program.cs#L224).
 11. Поиск hh.ru: страницы 0..10 — [Program.cs:226](../src/AiRecruiter/Program.cs#L226).
 12. Сводка прогона парсера и лог — [Program.cs:230-231](../src/AiRecruiter/Program.cs#L230-L231).

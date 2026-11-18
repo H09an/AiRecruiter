@@ -219,7 +219,7 @@ public sealed class Program
                 Logger.Log($"[SQLite] Мигрировано ссылок из seen_vacancies.txt: {lines.Length}");
             }
 
-            int minScore = IntConfigReader.Read(config, "Analyzer:MinScore", 7);
+            int minScore = IntConfigReader.Read(config, "Analyzer:MinScore", 3);
 
             var skipLinks = new HashSet<string>(repository.GetLinksToSkip(), StringComparer.Ordinal);
 
