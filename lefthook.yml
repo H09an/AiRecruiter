@@ -1,5 +1,7 @@
 pre-commit:
   commands:
+    docs:
+      run: bash scripts/check-docs.sh
     build:
       run: dotnet build AiRecruiter.slnx -c Release --nologo --no-incremental -p:TreatWarningsAsErrors=true
 

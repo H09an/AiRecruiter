@@ -27,9 +27,10 @@ cd AiRecruiter
 cp appsettings.example.json appsettings.json
 
 # 3. Входные файлы в корне репозитория:
-#    resume.txt          — текст резюме (обязателен)
-#    profile.md          — профиль кандидата и критерии (обязателен)
-#    candidate_summary.md — сводка навыков (опционально)
+#    resume.txt          — текст резюме (необязателен; иначе заглушка)
+#    profile.md          — профиль кандидата и критерии (необязателен; иначе заглушка)
+#    candidate_summary.md — сводка навыков (необязательна; иначе пустая сводка)
+#    Контакты Contacts:Fio/Tg/Phone/Email — обязательны
 
 # 4. Секреты
 export GIGACHAT_AUTH_KEY=...
@@ -40,9 +41,7 @@ export TELEGRAM_CHAT_ID=...
 dotnet run --project src/AiRecruiter/AiRecruiter.csproj
 ```
 
-Запускайте приложение из корня репозитория: `resume.txt`, `profile.md`,
-`appsettings.json`, `seen_vacancies.txt` и `app.log` читаются и пишутся
-относительно текущей рабочей директории.
+Запускайте приложение из корня репозитория: `appsettings.json` и `app.log` читаются и пишутся относительно текущей рабочей директории. Состояние вакансий — в SQLite-базе `vacancies.db`, она создаётся автоматически ([Program.cs:191-192](src/AiRecruiter/Program.cs#L191-L192)).
 
 ### Где взять секреты
 
@@ -58,12 +57,12 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj
 
 | Файл | Назначение |
 |---|---|
-| `resume.txt` | текст резюме |
-| `profile.md` | профиль кандидата и критерии |
-| `candidate_summary.md` | сводка навыков (опционально) |
-| `seen_vacancies.txt` | уже обработанные ссылки; ведётся автоматически |
+| `resume.txt` | текст резюме; если отсутствует, подставляется заглушка — [Program.cs:146-147](src/AiRecruiter/Program.cs#L146-L147) |
+| `profile.md` | профиль кандидата и критерии; если отсутствует, подставляется заглушка — [Program.cs:146-147](src/AiRecruiter/Program.cs#L146-L147) |
+| `candidate_summary.md` | сводка навыков; читает анализатор ([JobAnalyzer.cs:98](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L98)), при отсутствии — пустая сводка |
+| `vacancies.db` | состояние вакансий (SQLite), создаётся автоматически — [Program.cs:191-192](src/AiRecruiter/Program.cs#L191-L192), не коммитится |
 
-Если `resume.txt` или `profile.md` отсутствуют, приложение не остановится, но подставит заглушки — оценка вакансий будет бессмысленной.
+Если `resume.txt` или `profile.md` отсутствуют, приложение не остановится, но подставит заглушки — оценка вакансий будет бессмысленной. Контакты `Contacts:Fio/Tg/Phone/Email` обязательны: без всех четырёх приложение завершает работу ([Program.cs:138-142](src/AiRecruiter/Program.cs#L138-L142)).
 
 Ctrl+C — остановиться после текущей вакансии, повторный Ctrl+C — немедленный выход.
 
@@ -84,8 +83,8 @@ Ctrl+C — остановиться после текущей вакансии, 
 |---|---|---|
 | `Search:Query`, `Search:AreaCode` | — | поисковый запрос и регион hh.ru (`113` — Россия, только удалёнка; `4` — Новосибирск, любой формат) |
 | `Contacts:Fio`, `Tg`, `Phone`, `Email` | — | контакты для сопроводительного письма; все четыре обязательны |
-| `GigaChat:Model` | `GigaChat` | название модели |
-| `GigaChat:Temperature` / `TopP` / `MaxTokens` | 0.15 / 0.9 / 800 | параметры модели |
+| `GigaChat:Model` | `GigaChat` | название модели; код по умолчанию `GigaChat` ([JobAnalyzer.cs:99](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L99)), в [appsettings.example.json](appsettings.example.json) — `GigaChat-2-Pro` |
+| `GigaChat:Temperature` / `TopP` / `MaxTokens` | 0.15 / 0.9 / 800 | параметры модели; `MaxTokens` по умолчанию в коде 800 ([JobAnalyzer.cs:102](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102)), в [appsettings.example.json](appsettings.example.json) — 1200 |
 | `HhParser:Thresholds:*` | см. `src/AiRecruiter/Program.cs` | пороги алерта о смене вёрстки hh.ru |
 | `Filters:MinSalary` | `0` | минимальная зарплата в рублях; 0 — фильтр выключен; вакансии без зарплаты и в других валютах проходят |
 | `Filters:ExcludeTitleWords` | `[]` | слова в заголовке, при которых вакансия пропускается до GigaChat |
@@ -100,10 +99,15 @@ AiRecruiter/
 ├── src/AiRecruiter/          # код приложения
 │   ├── Analyzers/            # оценка вакансий через GigaChat
 │   ├── Configuration/        # чтение настроек
-│   ├── Filters/              # предфильтры (зарплата)
+│   ├── Filters/              # предфильтры (зарплата, стоп-слова)
 │   ├── Models/               # модели данных
 │   ├── Notifiers/            # отправка в Telegram
+│   ├── Storage/              # SQLite-хранилище вакансий
 │   └── Parsers/              # парсинг страниц hh.ru
+├── docs/                     # документация
+│   ├── architecture.md       # текущее состояние кода
+│   └── adr/                  # архитектурные решения (ADR)
+├── scripts/                  # вспомогательные скрипты (check-docs.sh)
 ├── tests/AiRecruiter.Tests/  # тесты xUnit
 ├── tests/Fixtures/           # синтетические фикстуры парсера
 ├── samples/                  # ваши HTML-страницы hh.ru (не коммитится)
@@ -113,7 +117,7 @@ AiRecruiter/
 ├── candidate_summary.md      # сводка навыков (не коммитится)
 ├── resume.txt                # резюме (не коммитится)
 ├── profile.md                # профиль кандидата (не коммитится)
-├── seen_vacancies.txt        # уже обработанные ссылки (не коммитится)
+├── vacancies.db              # состояние вакансий, SQLite (не коммитится)
 ├── app.log                   # лог приложения
 ├── Directory.Build.props     # общие свойства сборки
 ├── Directory.Packages.props  # версии NuGet-пакетов
@@ -171,13 +175,18 @@ dotnet test AiRecruiter.slnx
 - `TitleFilterTests` — поиск стоп-слов в заголовке вакансии.
 - `VacancyRepositoryTests` — SQLite-хранилище вакансий.
 
-Всего 83 теста.
+Всего 90 тестов.
 
 ## Разработка
 
 ```sh
 # Проверка форматирования
 dotnet format AiRecruiter.slnx --verify-no-changes --no-restore
+
+# Проверка документации: ссылки на код, обычные markdown-ссылки,
+# голые записи вида «путь:строка». Печатает предупреждения, не ошибки;
+# код возврата всегда 0.
+bash scripts/check-docs.sh
 ```
 
 Для PR: 0 предупреждений при сборке.
