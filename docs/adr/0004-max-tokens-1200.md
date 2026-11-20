@@ -6,7 +6,7 @@
 
 ## Дата
 
-2026-11-17 для значения 800 (коммит [67a4baa](https://github.com/H09an/AiRecruiter/commit/67a4baa)); значение 1200 — не проверено.
+2026-11-17 для значения 800 (коммит [67a4baa](https://github.com/H09an/AiRecruiter/commit/67a4baa)); 2026-11-18 для значения 1200 (коммит [5369608](https://github.com/H09an/AiRecruiter/commit/5369608)).
 
 ## Контекст
 
@@ -30,4 +30,5 @@
 
 Что ещё не сделано:
 
-- чтение `usage` / `completion_tokens` и измерение критерия пересмотра.
+- чтение `usage` / `completion_tokens` и измерение критерия пересмотра;
+- код-дефолт `MaxTokens = 1200` — 3.2a (шаг 5).
