@@ -102,6 +102,7 @@
 - `Experience` — белый список значений; fallback по тексту требований не должен давать мусор вроде «с системами управления тестированием». Почему: на `only_requirements.html` fallback попадает в промпт и Telegram.
 - Статусы — константы, не строковые литералы; `seen` остаётся legacy для старых строк. Почему: опечатка в строке ломает фильтр, отчёт и `GetLinksToSkip`.
 - `main_text_source` — в `llm_calls` (`description` / `requirements`), только для `purpose = analysis`.
+- `GetLinksToSkip` строится по исключению: не пропускаются `new` и `analysis_failed`, всё остальное — терминальные статусы. Почему: новый статус не забудут добавить в белый список и вакансия не уйдёт повторно в Telegram.
 - `description` в `vacancies` и `raw_response` в `llm_calls` сохраняются только для `analysis_failed` / `analysis_abandoned` и для вызовов, которым понадобился повтор.
 - Telegram: без обрезки текста; длину комментария задаёт правило в промпте. Существующая проверка `comment` 10–800 символов — [JobAnalyzer.cs:865-881](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L865-L881) — остаётся; превышение 4096 символов — отправка вторым сообщением.
 - `resume.txt`, `profile.md` и контакты в анализе и письме не используются: единственный источник — `candidate_summary.md`.

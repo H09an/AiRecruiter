@@ -271,8 +271,9 @@
 - На старте прогона — проход по БД: `analysis_failed` с `attempts >= 3`
   переводится в `analysis_abandoned`. Это нужно, потому что вакансия может
   больше не появиться в выдаче.
-- `GetLinksToSkip` включает `analysis_abandoned` и не включает
-  `analysis_failed`.
+- `GetLinksToSkip` строится по исключению: не пропускает `new` и
+  `analysis_failed`, остальные статусы считаются терминальными (подробнее в
+  разделе «Статусы»).
 - `SetStatus` обновляет `analyzed_at` для статусов, где это нужно.
 - В итоговый отчёт добавить число и ссылки `analysis_abandoned`; сумму токенов
   за прогон — после появления `llm_calls` (шаг 6).
@@ -318,6 +319,11 @@
   используют константы, а не строковые литералы;
 - `new` — стартовый статус записи после фильтров, до анализа; в skip не
   входит; после отправки меняется на `sent`;
+- `GetLinksToSkip` строится по исключению, а не по белому списку:
+  пропускается всё, кроме `new` и `analysis_failed`
+  (`WHERE status NOT IN ('new','analysis_failed')`). Так новый терминальный
+  статус не забудут добавить в список и вакансия не уйдёт повторно в
+  GigaChat/Telegram;
 - `analysis_failed` — ошибка анализа, `send_failed` — ошибка отправки; оба
   статуса и их обработка не меняются;
 - `letter_failed` и `apply_failed` — статусы этапов 3.3 и 3.4, когда
@@ -478,10 +484,10 @@ Repair:
 | + | `chore: порог Telegram Analyzer:MinScore 7 → 3, ADR-0009` (вне восьми шагов) | код, пример конфига, README, AGENTS, ADR-0007/0009, architecture, CHANGELOG | — | `done` |
 | 2 | `chore: удалить meta и миграцию seen_vacancies` | `DROP TABLE IF EXISTS meta`, убрать `CREATE meta`, миграцию `seen_vacancies.txt` из `Program`, проверку `File.Exists`, переименование в `.migrated`, упоминания в README, `.gitignore` и логе | README, architecture, CHANGELOG | `planned` |
 | 3 | `feat(parser): employer_id, опыт и поля вакансии` | `EmployerId`, белый список `Experience`, поля `experience`/`employment`/`work_format`/`published_at`, вывод `EmployerId` в `--parse-samples`, фикстуры и тесты | architecture, CHANGELOG | `planned` |
-| 4 | `feat(prompt): сводка один раз, полное описание, comment` | чтение сводки в `Program`, правило полного описания, колонка `description` и политика её хранения, три правила comment, repair (system/user), удаление `НАВЫКИ КАНДИДАТА`, `resume/profile/contacts` и мёртвого `vacancyDescription`, флаг 4000, код-дефолты `MaxTokens` 1200 и модели `GigaChat-2-Pro` | architecture, README, CHANGELOG | `planned` |
-| 5 | `feat(storage): attempts и analysis_abandoned` | `attempts`, `SaveAnalysisAttempt`, статусы-константы, `analysis_abandoned`, путь исключения, sweep на старте, отчёт | architecture, AGENTS, CHANGELOG | `planned` |
+| 4 | `feat(prompt): сводка один раз, полное описание, comment` | чтение сводки в `Program`, правило полного описания, колонка `description` и политика её хранения, три правила comment, repair (system/user), удаление `НАВЫКИ КАНДИДАТА`, `resume/profile/contacts` из оценщика и `Program`, мёртвого `vacancyDescription`, флаг 4000, код-дефолты `MaxTokens` 1200 и модели `GigaChat-2-Pro` | architecture, README, CHANGELOG | `planned` |
+| 5 | `feat(storage): attempts и analysis_abandoned` | `attempts`, `SaveAnalysisAttempt`, `SaveFiltered` / `SaveAnalysis` вместо шести копий `Upsert`, статусы-константы, `analysis_abandoned`, путь исключения, sweep на старте, отчёт | architecture, AGENTS, CHANGELOG | `planned` |
 | 6 | `feat(storage): журнал llm_calls` | `llm_calls`, `prompt_versions`, `candidate_profiles`, `GigaChatCallResult` (токены, модель, `http_attempts`), сумма токенов за прогон, политика `raw_response`, `main_text_source` | architecture, CHANGELOG, ADR о журнале | `planned` |
-| 7 | `feat(telegram): новый вид и лимит 4096` | новые строки, пустые поля, экранирование, второе сообщение, поля в retry | architecture, CHANGELOG | `planned` |
+| 7 | `feat(telegram): новый вид и лимит 4096` | новые строки, пустые поля, экранирование, второе сообщение, поля в retry; `SendAndRecord` вместо двух копий отправки; типизированный `PendingSend` вместо dynamic | architecture, CHANGELOG | `planned` |
 | 8 | `chore: финальная сверка и приёмка 3.2a` | тесты на девять словоформ заголовков и ложные срабатывания, сверка README/AGENTS/CHANGELOG/architecture, полная приёмка | README, AGENTS, architecture, CHANGELOG | `planned` |
 
 Шаги 5–7 можно объединить, если заказчик потребует минимум коммитов, но тогда
@@ -573,8 +579,9 @@ Repair:
 - `attempts` не сбрасывается `Upsert` / `SetStatus`, пишется при исключении;
 - `description` есть у `analysis_failed` / `analysis_abandoned`, отсутствует
   или очищен у `analyzed_low` / `analyzed_ok` / `sent`;
-- `GetLinksToSkip` включает `analysis_abandoned` и не включает
-  `analysis_failed`;
+- `GetLinksToSkip` строится по исключению: `new` и `analysis_failed` не
+  пропускаются, `analysis_abandoned`, `sent`, `send_failed`, `letter_failed`
+  и будущие терминальные статусы пропускаются;
 - запись `llm_calls` с `attempt_no`, `call_no`, `http_attempts`,
   `purpose`; `prompt_versions` с `kind`; `candidate_profiles`;
 - миграция старой БД в транзакции, повторный `Initialize`, отсутствие `meta`;
@@ -1118,6 +1125,11 @@ WHERE link = '...';
 | Автоматический повтор анализа | переанализ `analysis_failed` из сохранённого описания без повторного появления в выдаче; интервалы/backoff | сейчас только ручной `--retry-failed` в 3.4; автоматический повтор меняет расход токенов и требует решения | отдельным решением после калибровки |
 | Пересмотр сохранённых результатов при смене `MinScore` | переоценка `analyzed_low` из БД без нового вызова GigaChat | ранее решили не переотправлять `analyzed_low`; сейчас есть только команда сброса | отдельным решением после калибровки |
 | Политика `score` vs `weighted` | отклонять ответ при расхождении больше 1, пересчитывать или только логировать | меняет число repair/повторов и расход токенов; текущее поведение — логирование | решение в 3.2a или 3.2 |
+| `enum VacancyStatus` и `IsAnalysisOutcome()` | убрать строковые литералы и список статусов для `analyzed_at`; enum вместо класса констант | 3.2a уже вводит константы; enum — следующий шаг, чтобы не смешивать с миграцией и `attempts` | после 3.2a, вместе с декомпозицией или отдельно |
+| `ParserHealthCheck` | вынести из `Program` чтение конфигурации, пороги и предупреждения о здоровье парсера; тестировать без сети | не входит в 3.2a; меняет структуру `Main`, но не поведение | после 3.2a |
+| Дедуп в `HhParser` | локальный `HashSet` на прогон, чтобы одна карточка с двух страниц не возвращалась дважды; проверить гипотезу на реальной выдаче | `Program` уже проверяет `skipLinks` перед обработкой; нужен факт, что hh.ru даёт дубли | после 3.6, вместе с надёжностью поиска |
+| Зарплата — один разбор | убрать двойной `TryParseLowerBoundRub` / `ShouldSkip`; `ShouldSkip` удалить или вернуть границу через `out` | не блокирует 3.2a; тесты `SalaryFilter` придётся обновить с обоснованием | после 3.2a или в 3.2 |
+| Мёртвые методы репозитория | удалить `GetAllLinks` и `GetScoreDistribution`, обновить устаревший комментарий; удаление тестов — только с разрешения | методы нужны только тестам, продакшн их не использует; правило запрещает удалять тесты без обоснования | после 3.6, отдельным решением |
 | Строгий maintainability-аудит (`thermo-nuclear-code-review`) | жёсткий разбор ветки/архитектуры: code judo, файлы до 1000 строк, special-case ветки, границы, ошибки, тесты и seams; findings только в бэклог. Брать перед декомпозицией `JobAnalyzer` / `HhParser`, чтобы найти структурные проблемы, а не косметику | цель скилла — перестройка кода без изменения поведения, а текущий этап запрещает расширять объём и делать большой рефакторинг; сторонний скилл, запускать вручную и фиксировать версию | после 3.6, перед декомпозицией |
 | Диагностика запуска | ненулевой exit code при фатальных ошибках, отдельные уведомления о реальных ошибках парсера, «нет вакансий — не ошибка» | CLI-режимы и отказ от `Console.ReadLine` уже в 3.4; exit code можно добавить туда же | 3.4 или после |
 | Явные `pending_analysis` / `pending_send` | полная машина состояний из аудита | от неё сознательно отказались: транзитные статусы дают зависшие строки | не возвращаемся без причины |
