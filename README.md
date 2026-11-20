@@ -106,6 +106,7 @@ AiRecruiter/
 │   └── Parsers/              # парсинг страниц hh.ru
 ├── docs/                     # документация
 │   ├── architecture.md       # текущее состояние кода
+│   ├── roadmap.md            # этапы и критерии готовности
 │   └── adr/                  # архитектурные решения (ADR)
 ├── scripts/                  # вспомогательные скрипты (check-docs.sh)
 ├── tests/AiRecruiter.Tests/  # тесты xUnit
@@ -191,7 +192,7 @@ bash scripts/check-docs.sh
 
 Для PR: 0 предупреждений при сборке.
 
-История изменений — в [CHANGELOG.md](CHANGELOG.md).
+История изменений — в [CHANGELOG.md](CHANGELOG.md). План этапов — в [docs/roadmap.md](docs/roadmap.md).
 
 ### Локальные хуки (необязательно)
 
