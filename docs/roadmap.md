@@ -486,13 +486,27 @@ Repair:
 |---|---|---|---|---|
 | 1 | `docs: этап 3.2a, коммит 1 — документация и правило обновления` | `docs/architecture.md`, ADR-0001–0008, `scripts/check-docs.sh`, правило в `AGENTS.md`, README/CHANGELOG, lefthook и CI | — | `done` |
 | 2 | `chore: порог Telegram Analyzer:MinScore 7 → 3, ADR-0009` | код, пример конфига, README, AGENTS, ADR-0007/0009, architecture, CHANGELOG | — | `done` |
-| 3 | `chore: удалить meta и миграцию seen_vacancies` | `DROP TABLE IF EXISTS meta`, убрать `CREATE meta`; `Initialize` в транзакции (DDL, миграция колонок, legacy-`UPDATE ... analysis_failed`); убрать миграцию `seen_vacancies.txt` из `Program`, проверку `File.Exists`, переименование в `.migrated`, упоминания в `.gitignore` и логе; тесты: `meta` удалена, повторный `Initialize` идемпотентен, данные не потеряны; после сдвига строк обновить ссылки на `Program.cs` и счётчик «Всего N тестов» в README | README, architecture, ADR-0001, AGENTS, roadmap, CHANGELOG | `planned` |
+| 3 | `chore: удалить meta и миграцию seen_vacancies` | Удалить `meta` и миграцию `seen_vacancies.txt`; `Initialize` в транзакции; тесты на удаление `meta`, идемпотентность и сохранность данных. Детали — ниже | README, architecture, ADR-0001, AGENTS, roadmap, CHANGELOG | `planned` |
 | 4 | `feat(parser): employer_id, опыт и поля вакансии` | `EmployerId`, белый список `Experience`, поля `experience`/`employment`/`work_format`/`published_at`, вывод `EmployerId` в `--parse-samples`, фикстуры и тесты | architecture, CHANGELOG | `planned` |
 | 5 | `feat(prompt): сводка один раз, полное описание, comment` | чтение сводки в `Program`, правило полного описания, колонка `description` и политика её хранения, три правила comment, repair (system/user), удаление `НАВЫКИ КАНДИДАТА`, `resume/profile/contacts` из оценщика (чтение и проверка `Contacts:*` в `Program` остаются), мёртвого `vacancyDescription`, флаг 4000, код-дефолты `MaxTokens` 1200 и модели `GigaChat-2-Pro` | architecture, README, CHANGELOG | `planned` |
 | 6 | `feat(storage): attempts и analysis_abandoned` | `attempts`, `SaveAnalysisAttempt`, `SaveFiltered` / `SaveAnalysis` вместо шести копий `Upsert`, статусы-константы, `analysis_abandoned`, путь исключения, sweep на старте, отчёт | architecture, AGENTS, CHANGELOG | `planned` |
 | 7 | `feat(storage): журнал llm_calls` | `llm_calls`, `prompt_versions`, `candidate_profiles`, `GigaChatCallResult` (токены, модель, `http_attempts`), сумма токенов за прогон, политика `raw_response`, `main_text_source` | architecture, CHANGELOG, ADR о журнале | `planned` |
 | 8 | `feat(telegram): новый вид и лимит 4096` | новые строки, пустые поля, экранирование, второе сообщение, поля в retry; `SendAndRecord` вместо двух копий отправки; типизированный `PendingSend` вместо dynamic | architecture, CHANGELOG | `planned` |
 | 9 | `chore: финальная сверка и приёмка 3.2a` | тесты на текущие словоформы заголовков и ложные срабатывания, сверка README/AGENTS/CHANGELOG/architecture, полная приёмка | README, AGENTS, architecture, CHANGELOG | `planned` |
+
+#### Шаг 3 — детали
+
+- `DROP TABLE IF EXISTS meta`, убрать `CREATE meta`.
+- `Initialize` — одна транзакция: DDL, миграция колонок, legacy-`UPDATE ... analysis_failed`;
+  повторный вызов идемпотентен.
+- Убрать из `Program` миграцию `seen_vacancies.txt`: `File.Exists`, чтение,
+  `Upsert` со статусом `seen`, переименование в `.migrated`, лог.
+- Тесты: `meta` удаляется; повторный `Initialize` не меняет данные; существующая
+  БД открывается без потери строк.
+- После сдвига строк обновить ссылки на `Program.cs` во всех документах и счётчик
+  «Всего N тестов» в `README.md`.
+- `.gitignore`: убрать `seen_vacancies.txt` и `*.migrated`; локальный `.migrated`
+  не удалять, сообщить в отчёте.
 
 Шаги 6–8 можно объединить, если заказчик потребует минимум коммитов, но тогда
 ревью станет крупнее. Дробление по слоям предпочтительнее.
