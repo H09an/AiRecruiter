@@ -100,7 +100,7 @@ Ctrl+C — остановиться после текущей вакансии, 
 | `Contacts:Fio`, `Tg`, `Phone`, `Email` | — | контакты кандидата; все четыре обязательны и проверяются на старте ([Program.cs:112-144](src/AiRecruiter/Program.cs#L112-L144)); в оценке не участвуют ([ADR-0011](docs/adr/0011-contacts-in-cover-letter.md)) |
 | `GigaChat:Model` | `GigaChat` | название модели; код по умолчанию `GigaChat` ([JobAnalyzer.cs:99](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L99)), в [appsettings.example.json](appsettings.example.json) — `GigaChat-2-Pro` |
 | `GigaChat:Temperature` / `TopP` / `MaxTokens` | 0.15 / 0.9 / 800 | параметры модели; `MaxTokens` по умолчанию в коде 800 ([JobAnalyzer.cs:102](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102)), в [appsettings.example.json](appsettings.example.json) — 1200 |
-| `HhParser:Thresholds:*` | 5 вакансий; 80 / 80 / 10 / 10 / 10 % | пороги алерта о смене вёрстки hh.ru: `MinVacanciesForAlert`, `RequirementsPercent`, `DescriptionPercent`, `ResponsibilitiesPercent`, `KeySkillsPercent`, `ConditionsPercent` — [Program.cs:234-239](src/AiRecruiter/Program.cs#L234-L239) |
+| `HhParser:Thresholds:*` | 5 вакансий; 80 / 80 / 10 / 10 / 10 % | пороги алерта о смене вёрстки hh.ru: `MinVacanciesForAlert`, `RequirementsPercent`, `DescriptionPercent`, `ResponsibilitiesPercent`, `KeySkillsPercent`, `ConditionsPercent` — [Program.cs:206-211](src/AiRecruiter/Program.cs#L206-L211) |
 | `Filters:MinSalary` | `0` | минимальная зарплата в рублях; 0 — фильтр выключен; вакансии без зарплаты и в других валютах проходят |
 | `Filters:ExcludeTitleWords` | `[]` | слова в заголовке, при которых вакансия пропускается до GigaChat |
 | `Analyzer:MinScore` | `3` | минимальная оценка для отправки в Telegram |
@@ -196,7 +196,7 @@ dotnet test AiRecruiter.slnx
 - `TitleFilterTests` — поиск стоп-слов в заголовке вакансии.
 - `VacancyRepositoryTests` — SQLite-хранилище вакансий.
 
-Всего 90 тестов.
+Всего 92 теста.
 
 ## Разработка
 

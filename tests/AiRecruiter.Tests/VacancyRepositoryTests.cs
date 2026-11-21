@@ -55,6 +55,13 @@ public sealed class VacancyRepositoryTests : IDisposable
             AnalyzedAt: null,
             FailReason: null);
 
+    private static string? QueryScalarFor(string databasePath, string sql, object? param = null)
+    {
+        using var connection = new SqliteConnection($"Data Source={databasePath}");
+        connection.Open();
+        return connection.ExecuteScalar<string>(sql, param);
+    }
+
     private string? QueryScalar(string sql, object? param = null)
     {
         using var connection = new SqliteConnection($"Data Source={_dbPath}");
@@ -338,5 +345,88 @@ public sealed class VacancyRepositoryTests : IDisposable
         Assert.Equal(1, distribution[1]);
         Assert.Equal(2, distribution[3]);
         Assert.Equal(1, distribution[10]);
+    }
+
+    [Fact]
+    public void Initialize_DropsMetaAndKeepsVacancyRows()
+    {
+        // Отдельный файл: старая схема с meta и строкой в vacancies.
+        var metaPath = Path.Combine(Path.GetTempPath(), $"vacancies_test_{Guid.NewGuid():N}.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={metaPath}"))
+            {
+                connection.Open();
+                connection.Execute("""
+                    CREATE TABLE vacancies (
+                        link TEXT PRIMARY KEY,
+                        employer_id TEXT,
+                        title TEXT,
+                        company TEXT,
+                        salary TEXT,
+                        score INTEGER,
+                        status TEXT NOT NULL,
+                        first_seen TEXT NOT NULL,
+                        analyzed_at TEXT,
+                        fail_reason TEXT
+                    );
+                    CREATE TABLE meta (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL
+                    );
+                    INSERT INTO meta (key, value) VALUES ('schema', 'v1');
+                    INSERT INTO vacancies (link, status, first_seen)
+                    VALUES ('https://hh.ru/vacancy/1', 'seen', '2026-01-01T00:00:00.0000000Z');
+                    """);
+            }
+
+            var repository = new VacancyRepository(metaPath);
+            repository.Initialize();
+
+            Assert.Null(QueryScalarFor(
+                metaPath,
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'meta'"));
+            Assert.Equal(
+                "https://hh.ru/vacancy/1",
+                QueryScalarFor(metaPath, "SELECT link FROM vacancies"));
+            foreach (var column in new[] { "comment", "cover_letter", "tech_stack" })
+            {
+                Assert.Equal(
+                    column,
+                    QueryScalarFor(
+                        metaPath,
+                        "SELECT name FROM pragma_table_info('vacancies') WHERE name = @name",
+                        new { name = column }));
+            }
+        }
+        finally
+        {
+            foreach (var suffix in DatabaseFileSuffixes)
+            {
+                var path = metaPath + suffix;
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void Initialize_SecondRun_IsIdempotentAndKeepsRows()
+    {
+        _repository.Upsert(AnalyzedRecord());
+
+        _repository.Initialize();
+        _repository.Initialize();
+
+        Assert.Equal(
+            "https://hh.ru/vacancy/1",
+            QueryScalar("SELECT link FROM vacancies"));
+        Assert.Equal(
+            "Сопроводительное письмо",
+            QueryScalar("SELECT cover_letter FROM vacancies"));
+        Assert.Null(QueryScalar(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'meta'"));
     }
 }

@@ -47,6 +47,7 @@ internal sealed class VacancyRepository
     {
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
+        using var transaction = connection.BeginTransaction();
         connection.Execute("""
             CREATE TABLE IF NOT EXISTS vacancies (
                 link TEXT PRIMARY KEY,
@@ -63,15 +64,14 @@ internal sealed class VacancyRepository
                 cover_letter TEXT,
                 tech_stack TEXT
             );
-            CREATE TABLE IF NOT EXISTS meta (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            );
-            """);
+            """, transaction: transaction);
+
+        // Устаревшая таблица ключ-значение больше не используется: удаляем её.
+        connection.Execute("DROP TABLE IF EXISTS meta", transaction: transaction);
 
         // Миграция legacy-схемы: добавляем отсутствующие колонки анализа.
         var existingColumns = connection
-            .Query<string>("SELECT name FROM pragma_table_info('vacancies')")
+            .Query<string>("SELECT name FROM pragma_table_info('vacancies')", transaction: transaction)
             .AsList();
 
         foreach (var column in new[] { "comment", "cover_letter", "tech_stack" })
@@ -88,7 +88,7 @@ internal sealed class VacancyRepository
                 _ => "ALTER TABLE vacancies ADD COLUMN tech_stack TEXT",
             };
 
-            connection.Execute(alterSql);
+            connection.Execute(alterSql, transaction: transaction);
         }
 
         // Legacy-записи, готовые к повторной отправке, но без сохранённого анализа:
@@ -100,7 +100,9 @@ internal sealed class VacancyRepository
                 fail_reason = 'migrated: no saved analysis'
             WHERE status IN ('send_failed','analyzed_ok')
               AND (score IS NULL OR comment IS NULL OR TRIM(comment) = '')
-            """);
+            """, transaction: transaction);
+
+        transaction.Commit();
     }
 
     public IReadOnlyCollection<string> GetAllLinks()

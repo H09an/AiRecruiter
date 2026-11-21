@@ -23,12 +23,11 @@
 
 Факты в коде:
 
-- создание таблиц `vacancies` и `meta`, миграция колонок, перевод legacy-записей
-  в `analysis_failed` —
-  [VacancyRepository.cs:46-104](../../src/AiRecruiter/Storage/VacancyRepository.cs#L46-L104);
-- инициализация хранилища и однократная миграция из `seen_vacancies.txt` со
-  статусом `seen` —
-  [Program.cs:191-220](../../src/AiRecruiter/Program.cs#L191-L220).
+- создание таблицы `vacancies`, удаление `meta`, миграция колонок и перевод
+  legacy-записей в `analysis_failed` в одной транзакции —
+  [VacancyRepository.cs:46-106](../../src/AiRecruiter/Storage/VacancyRepository.cs#L46-L106);
+- инициализация хранилища —
+  [Program.cs:191-192](../../src/AiRecruiter/Program.cs#L191-L192).
 
 ## Последствия
 
@@ -40,9 +39,7 @@
 
 Что ещё не сделано:
 
-- миграция из `seen_vacancies.txt` всё ещё выполняется при каждом старте —
-  [Program.cs:194-220](../../src/AiRecruiter/Program.cs#L194-L220); её удаление
-  запланировано на 3.2a;
-- таблица `meta` создаётся, но не используется;
 - колонки `experience` / `employment` / `work_format` / `published_at` и
   заполнение `employer_id` добавляются в 3.2a.
+
+Обновлено: meta и миграция удалены в 3.2a (коммит 3).

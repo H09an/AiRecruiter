@@ -82,7 +82,7 @@ public sealed class Program
         Logger.Log("=== Запуск программы ===");
 
         // Первый Ctrl+C — дообработать текущую вакансию и выйти (иначе kill между отправкой
-        // в Telegram и записью в seen_vacancies.txt даёт дубль уведомления). Второй — жёсткий выход.
+        // в Telegram и записью статуса в SQLite даёт дубль уведомления). Второй — жёсткий выход.
         // Без using: обработчик живёт до конца процесса и может сработать после выхода из Main.
         var stopCts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) =>
@@ -187,37 +187,9 @@ public sealed class Program
                 workFormat = "REMOTE"; // Default fallback for other regions
             }
 
-            // Состояние вакансий в SQLite; seen_vacancies.txt мигрируется один раз.
+            // Состояние вакансий в SQLite.
             var repository = new VacancyRepository("vacancies.db");
             repository.Initialize();
-
-            if (File.Exists("seen_vacancies.txt"))
-            {
-                var lines = await File.ReadAllLinesAsync("seen_vacancies.txt");
-                foreach (var line in lines)
-                {
-                    var link = line.Trim();
-                    if (link.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    repository.Upsert(new VacancyRecord(
-                        Link: link,
-                        EmployerId: null,
-                        Title: null,
-                        Company: null,
-                        Salary: null,
-                        Score: null,
-                        Status: "seen",
-                        FirstSeen: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-                        AnalyzedAt: null,
-                        FailReason: null));
-                }
-
-                File.Move("seen_vacancies.txt", "seen_vacancies.txt.migrated", overwrite: true);
-                Logger.Log($"[SQLite] Мигрировано ссылок из seen_vacancies.txt: {lines.Length}");
-            }
 
             int minScore = IntConfigReader.Read(config, "Analyzer:MinScore", 3);
 
@@ -244,7 +216,7 @@ public sealed class Program
 
             if (summary.Total == 0)
             {
-                Logger.Log("[HhParser] ВНИМАНИЕ: за прогон не собрано ни одной вакансии — проверьте селекторы или seen_vacancies.txt.");
+                Logger.Log("[HhParser] ВНИМАНИЕ: за прогон не собрано ни одной вакансии — проверьте селекторы.");
             }
             else if (summary.Total >= minVacanciesForAlert)
             {

@@ -124,8 +124,11 @@
 - коммит 2 — порог `Analyzer:MinScore` 7 → 3, ADR-0009 — сделано;
 - планирование этапа — roadmap 3.1–3.6, ADR-0010, уточнения AGENTS и CHANGELOG,
   флаги письма/отклика, бэклог — сделано, тег `stage-3.2a-planning`;
-- следующий — коммит 3 (удаление `meta` и миграции `seen_vacancies.txt`);
-  коммиты 3–9 не начаты.
+- docs-only очередь D1–D4 (стандарт документации) — сделана после коммита 2,
+  до коммита 3; в девять шагов 3.2a не входит, номера шагов не меняет;
+- коммит 3 — удаление `meta` и миграции `seen_vacancies.txt`, `Initialize` в
+  транзакции — сделано;
+- следующий — коммит 4; коммиты 4–9 не начаты.
 
 **Цель:** подготовить данные и схему для калибровки, убрать технический долг.
 
@@ -480,13 +483,13 @@ Repair:
 |---|---|---|---|---|
 | 1 | `docs: этап 3.2a, коммит 1 — документация и правило обновления` | `docs/architecture.md`, ADR-0001–0008, `scripts/check-docs.sh`, правило в `AGENTS.md`, README/CHANGELOG, lefthook и CI | — | `done` |
 | 2 | `chore: порог Telegram Analyzer:MinScore 7 → 3, ADR-0009` | код, пример конфига, README, AGENTS, ADR-0007/0009, architecture, CHANGELOG | — | `done` |
-| 3 | `chore: удалить meta и миграцию seen_vacancies` | Удалить `meta` и миграцию `seen_vacancies.txt`; `Initialize` в транзакции; тесты на удаление `meta`, идемпотентность и сохранность данных. Детали — ниже | README, architecture, ADR-0001, AGENTS, roadmap, CHANGELOG | `planned` |
-| 4 | `feat(parser): employer_id, опыт и поля вакансии` | `EmployerId`, белый список `Experience`, поля `experience`/`employment`/`work_format`/`published_at`, вывод `EmployerId` в `--parse-samples`, фикстуры и тесты | architecture, CHANGELOG | `planned` |
-| 5 | `feat(prompt): сводка один раз, полное описание, comment` | чтение сводки в `Program`, правило полного описания, колонка `description` и политика её хранения, три правила comment, repair (system/user), удаление `НАВЫКИ КАНДИДАТА`, `resume/profile/contacts` из оценщика (чтение и проверка `Contacts:*` в `Program` остаются), мёртвого `vacancyDescription`, флаг 4000, код-дефолты `MaxTokens` 1200 и модели `GigaChat-2-Pro` | architecture, README, CHANGELOG | `planned` |
-| 6 | `feat(storage): attempts и analysis_abandoned` | `attempts`, `SaveAnalysisAttempt`, `SaveFiltered` / `SaveAnalysis` вместо шести копий `Upsert`, статусы-константы, `analysis_abandoned`, путь исключения, sweep на старте, отчёт | architecture, AGENTS, CHANGELOG | `planned` |
-| 7 | `feat(storage): журнал llm_calls` | `llm_calls`, `prompt_versions`, `candidate_profiles`, `GigaChatCallResult` (токены, модель, `http_attempts`), сумма токенов за прогон, политика `raw_response`, `main_text_source` | architecture, CHANGELOG, ADR о журнале | `planned` |
-| 8 | `feat(telegram): новый вид и лимит 4096` | новые строки, пустые поля, экранирование, второе сообщение, поля в retry; `SendAndRecord` вместо двух копий отправки; типизированный `PendingSend` вместо dynamic | architecture, CHANGELOG | `planned` |
-| 9 | `chore: финальная сверка и приёмка 3.2a` | тесты на текущие словоформы заголовков и ложные срабатывания, сверка README/AGENTS/CHANGELOG/architecture, полная приёмка | README, AGENTS, architecture, CHANGELOG | `planned` |
+| 3 | `chore: удалить meta и миграцию seen_vacancies (этап 3.2a, коммит 3)` | Удалить `meta` и миграцию `seen_vacancies.txt`; `Initialize` в транзакции; тесты на удаление `meta`, идемпотентность и сохранность данных. Детали — ниже | README, architecture, ADR-0001, AGENTS, roadmap, CHANGELOG | `done` |
+| 4 | `feat(parser): employer_id, опыт и поля вакансии (этап 3.2a, коммит 4)` | `EmployerId`, белый список `Experience`, поля `experience`/`employment`/`work_format`/`published_at`, вывод `EmployerId` в `--parse-samples`, фикстуры и тесты | architecture, CHANGELOG | `planned` |
+| 5 | `feat(prompt): сводка один раз, полное описание, comment (этап 3.2a, коммит 5)` | чтение сводки в `Program`, правило полного описания, колонка `description` и политика её хранения, три правила comment, repair (system/user), удаление `НАВЫКИ КАНДИДАТА`, `resume/profile/contacts` из оценщика (чтение и проверка `Contacts:*` в `Program` остаются), мёртвого `vacancyDescription`, флаг 4000, код-дефолты `MaxTokens` 1200 и модели `GigaChat-2-Pro` | architecture, README, CHANGELOG | `planned` |
+| 6 | `feat(storage): attempts и analysis_abandoned (этап 3.2a, коммит 6)` | `attempts`, `SaveAnalysisAttempt`, `SaveFiltered` / `SaveAnalysis` вместо шести копий `Upsert`, статусы-константы, `analysis_abandoned`, путь исключения, sweep на старте, отчёт | architecture, AGENTS, CHANGELOG | `planned` |
+| 7 | `feat(storage): журнал llm_calls (этап 3.2a, коммит 7)` | `llm_calls`, `prompt_versions`, `candidate_profiles`, `GigaChatCallResult` (токены, модель, `http_attempts`), сумма токенов за прогон, политика `raw_response`, `main_text_source` | architecture, CHANGELOG, ADR о журнале | `planned` |
+| 8 | `feat(telegram): новый вид и лимит 4096 (этап 3.2a, коммит 8)` | новые строки, пустые поля, экранирование, второе сообщение, поля в retry; `SendAndRecord` вместо двух копий отправки; типизированный `PendingSend` вместо dynamic | architecture, CHANGELOG | `planned` |
+| 9 | `chore: финальная сверка и приёмка 3.2a (этап 3.2a, коммит 9)` | тесты на текущие словоформы заголовков и ложные срабатывания, сверка README/AGENTS/CHANGELOG/architecture, полная приёмка | README, AGENTS, architecture, CHANGELOG | `planned` |
 
 #### Шаг 3 — детали
 
@@ -507,7 +510,7 @@ Repair:
 
 ### Критерии готовности
 
-- [ ] схема мигрирует в транзакции, существующая `vacancies.db` открывается без
+- [x] схема мигрирует в транзакции, существующая `vacancies.db` открывается без
   потери данных, повторный `Initialize` ничего не меняет; `meta` удалена;
   миграция `seen_vacancies.txt` удалена; legacy-миграция
   `UPDATE ... analysis_failed` сохранена;
@@ -1175,6 +1178,7 @@ WHERE link = '...';
 | DPIA | при коммерциализации или многопользовательском режиме |
 | `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue/PR templates | гигиена публичного репозитория, не блокирует этапы |
 | Глоссарий | можно добавить в `docs/architecture.md`, отдельный файл не обязателен |
+| Проверка содержимого ссылок в `check-docs.sh` | сверять строку по якорю с текстом ссылки, а не только путь и якорь; сейчас сдвиг строк проходит незамеченным; после 3.2a, отдельным решением |
 | Скилл `agent-review-prompt` | не берём: нет канонического источника и версии, дублирует `stage-runbook` и `audit-triage`; при необходимости делаем свой `agent-report-review` под формат отчёта Кодера |
 
 ## Очередь документации

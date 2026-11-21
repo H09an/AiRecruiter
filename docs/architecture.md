@@ -26,48 +26,45 @@
    [Program.cs:176-188](../src/AiRecruiter/Program.cs#L176-L188).
 7. Инициализация хранилища `vacancies.db` —
    [Program.cs:191-192](../src/AiRecruiter/Program.cs#L191-L192).
-8. Миграция `seen_vacancies.txt` → vacancies со статусом `seen`, файл
-   переименовывается —
-   [Program.cs:194-220](../src/AiRecruiter/Program.cs#L194-L220).
-9. Порог `Analyzer:MinScore` (по умолчанию 3) —
-   [Program.cs:222](../src/AiRecruiter/Program.cs#L222).
-10. `GetLinksToSkip()` — уже обработанные ссылки из БД —
-    [Program.cs:224](../src/AiRecruiter/Program.cs#L224).
-11. Поиск hh.ru: страницы 0..10 —
-    [Program.cs:226](../src/AiRecruiter/Program.cs#L226).
-12. Сводка прогона парсера и лог —
-    [Program.cs:230-231](../src/AiRecruiter/Program.cs#L230-L231).
-13. Пороги `HhParser:Thresholds:*`, `Filters:MinSalary`,
+8. Порог `Analyzer:MinScore` (по умолчанию 3) —
+   [Program.cs:194](../src/AiRecruiter/Program.cs#L194).
+9. `GetLinksToSkip()` — уже обработанные ссылки из БД —
+   [Program.cs:196](../src/AiRecruiter/Program.cs#L196).
+10. Поиск hh.ru: страницы 0..10 —
+    [Program.cs:198](../src/AiRecruiter/Program.cs#L198).
+11. Сводка прогона парсера и лог —
+    [Program.cs:202-203](../src/AiRecruiter/Program.cs#L202-L203).
+12. Пороги `HhParser:Thresholds:*`, `Filters:MinSalary`,
     `Filters:ExcludeTitleWords` —
-    [Program.cs:234-241](../src/AiRecruiter/Program.cs#L234-L241).
-14. Предупреждения о вёрстке hh.ru —
-    [Program.cs:245-293](../src/AiRecruiter/Program.cs#L245-L293).
-15. Создание анализатора — [Program.cs:295](../src/AiRecruiter/Program.cs#L295).
-16. Создание notifier — [Program.cs:297](../src/AiRecruiter/Program.cs#L297).
-17. Алерт о смене вёрстки в Telegram, если есть предупреждения —
-    [Program.cs:299-304](../src/AiRecruiter/Program.cs#L299-L304).
-18. Повторная отправка из сохранённого результата — до цикла вакансий —
-    [Program.cs:307](../src/AiRecruiter/Program.cs#L307).
-19. Цикл вакансий —
-    [Program.cs:314-460](../src/AiRecruiter/Program.cs#L314-L460):
+    [Program.cs:206-213](../src/AiRecruiter/Program.cs#L206-L213).
+13. Предупреждения о вёрстке hh.ru —
+    [Program.cs:217-265](../src/AiRecruiter/Program.cs#L217-L265).
+14. Создание анализатора — [Program.cs:267](../src/AiRecruiter/Program.cs#L267).
+15. Создание notifier — [Program.cs:269](../src/AiRecruiter/Program.cs#L269).
+16. Алерт о смене вёрстки в Telegram, если есть предупреждения —
+    [Program.cs:271-276](../src/AiRecruiter/Program.cs#L271-L276).
+17. Повторная отправка из сохранённого результата — до цикла вакансий —
+    [Program.cs:279](../src/AiRecruiter/Program.cs#L279).
+18. Цикл вакансий —
+    [Program.cs:286-432](../src/AiRecruiter/Program.cs#L286-L432):
     1. пропуск уже виденных —
-       [Program.cs:322](../src/AiRecruiter/Program.cs#L322);
+       [Program.cs:294](../src/AiRecruiter/Program.cs#L294);
     2. фильтр по стоп-словам в заголовке —
-       [Program.cs:330](../src/AiRecruiter/Program.cs#L330);
+       [Program.cs:302](../src/AiRecruiter/Program.cs#L302);
     3. фильтр по зарплате —
-       [Program.cs:352-353](../src/AiRecruiter/Program.cs#L352-L353);
-    4. анализ GigaChat — [Program.cs:377](../src/AiRecruiter/Program.cs#L377);
+       [Program.cs:324-325](../src/AiRecruiter/Program.cs#L324-L325);
+    4. анализ GigaChat — [Program.cs:349](../src/AiRecruiter/Program.cs#L349);
     5. без описания → `analysis_failed` —
-       [Program.cs:379-397](../src/AiRecruiter/Program.cs#L379-L397);
+       [Program.cs:351-369](../src/AiRecruiter/Program.cs#L351-L369);
     6. оценка ниже порога → `analyzed_low`, в Telegram не отправляется —
-       [Program.cs:398-419](../src/AiRecruiter/Program.cs#L398-L419);
+       [Program.cs:370-391](../src/AiRecruiter/Program.cs#L370-L391);
     7. `analyzed_ok` → отправка в Telegram → `sent` / `send_failed` —
-       [Program.cs:420-450](../src/AiRecruiter/Program.cs#L420-L450); метка 🔥/💭
-       — [Program.cs:440](../src/AiRecruiter/Program.cs#L440), запись статуса —
-       [Program.cs:442](../src/AiRecruiter/Program.cs#L442).
-20. Итог: отфильтровано по зарплате, распределение оценок, неудачи JSON —
-    [Program.cs:462-474](../src/AiRecruiter/Program.cs#L462-L474).
-21. Прогон ждёт Enter — [Program.cs:477](../src/AiRecruiter/Program.cs#L477).
+       [Program.cs:392-422](../src/AiRecruiter/Program.cs#L392-L422); метка 🔥/💭
+       — [Program.cs:412](../src/AiRecruiter/Program.cs#L412), запись статуса —
+       [Program.cs:414](../src/AiRecruiter/Program.cs#L414).
+19. Итог: отфильтровано по зарплате, распределение оценок, неудачи JSON —
+    [Program.cs:434-446](../src/AiRecruiter/Program.cs#L434-L446).
+20. Прогон ждёт Enter — [Program.cs:449](../src/AiRecruiter/Program.cs#L449).
 
 ## Модули
 
@@ -91,8 +88,7 @@
 flowchart TD
     A[Старт] --> B[Конфигурация, секреты, контакты]
     B --> C[Инициализация vacancies.db]
-    C --> D[Миграция seen_vacancies.txt]
-    D --> E[GetLinksToSkip из БД]
+    C --> E[GetLinksToSkip из БД]
     E --> F[Поиск hh.ru, страницы 0..10]
     F --> G[Сводка прогона и пороги]
     G --> H{Предупреждения о вёрстке}
@@ -121,13 +117,13 @@ flowchart TD
 
 | Статус | Где ставится | Что дальше |
 |---|---|---|
-| `seen` | миграция из файла — [Program.cs:205-215](../src/AiRecruiter/Program.cs#L205-L215) | попадает в `GetLinksToSkip`, не парсится заново |
-| `filtered_stopword` | до GigaChat — [Program.cs:334-347](../src/AiRecruiter/Program.cs#L334-L347) | в `GetLinksToSkip`, не анализируется повторно |
-| `filtered_salary` | до GigaChat — [Program.cs:356-369](../src/AiRecruiter/Program.cs#L356-L369) | в `GetLinksToSkip`, не анализируется повторно |
-| `analysis_failed` | анализ без описания или провал — [Program.cs:382-395](../src/AiRecruiter/Program.cs#L382-L395) | не попадает в `GetLinksToSkip` — [VacancyRepository.cs:170-182](../src/AiRecruiter/Storage/VacancyRepository.cs#L170-L182), переанализируется при следующем появлении в выдаче |
-| `analyzed_low` | оценка ниже порога — [Program.cs:402-415](../src/AiRecruiter/Program.cs#L402-L415) | в `GetLinksToSkip`, в Telegram не отправляется |
-| `analyzed_ok` | оценка не ниже порога — [Program.cs:423-436](../src/AiRecruiter/Program.cs#L423-L436) | живёт только между `Upsert` и `SetStatus` в одной итерации цикла |
-| `sent` / `send_failed` | результат отправки — [Program.cs:442](../src/AiRecruiter/Program.cs#L442) | обе попадают в повторную отправку из сохранённого результата — [VacancyRepository.cs:188-216](../src/AiRecruiter/Storage/VacancyRepository.cs#L188-L216) |
+| `seen` | legacy-строки старых версий; миграция удалена | попадает в `GetLinksToSkip`, не парсится заново |
+| `filtered_stopword` | до GigaChat — [Program.cs:306-319](../src/AiRecruiter/Program.cs#L306-L319) | в `GetLinksToSkip`, не анализируется повторно |
+| `filtered_salary` | до GigaChat — [Program.cs:328-341](../src/AiRecruiter/Program.cs#L328-L341) | в `GetLinksToSkip`, не анализируется повторно |
+| `analysis_failed` | анализ без описания или провал — [Program.cs:354-367](../src/AiRecruiter/Program.cs#L354-L367) | не попадает в `GetLinksToSkip` — [VacancyRepository.cs:172-184](../src/AiRecruiter/Storage/VacancyRepository.cs#L172-L184), переанализируется при следующем появлении в выдаче |
+| `analyzed_low` | оценка ниже порога — [Program.cs:374-387](../src/AiRecruiter/Program.cs#L374-L387) | в `GetLinksToSkip`, в Telegram не отправляется |
+| `analyzed_ok` | оценка не ниже порога — [Program.cs:395-408](../src/AiRecruiter/Program.cs#L395-L408) | живёт только между `Upsert` и `SetStatus` в одной итерации цикла |
+| `sent` / `send_failed` | результат отправки — [Program.cs:414](../src/AiRecruiter/Program.cs#L414) | обе попадают в повторную отправку из сохранённого результата — [VacancyRepository.cs:190-218](../src/AiRecruiter/Storage/VacancyRepository.cs#L190-L218) |
 
 ## Схема БД
 
@@ -148,60 +144,48 @@ erDiagram
         TEXT cover_letter
         TEXT tech_stack
     }
-    meta {
-        TEXT key PK
-        TEXT value NOT NULL
-    }
 ```
 
 Схема создаётся —
-[VacancyRepository.cs:50-70](../src/AiRecruiter/Storage/VacancyRepository.cs#L50-L70),
+[VacancyRepository.cs:51-67](../src/AiRecruiter/Storage/VacancyRepository.cs#L51-L67),
 отсутствующие колонки добавляются миграцией —
-[VacancyRepository.cs:72-92](../src/AiRecruiter/Storage/VacancyRepository.cs#L72-L92).
+[VacancyRepository.cs:77-92](../src/AiRecruiter/Storage/VacancyRepository.cs#L77-L92).
 
 ## Поля
 
 | Поле | Тип | Смысл | Источник в коде |
 |---|---|---|---|
-| `employer_id` | TEXT NULL | идентификатор работодателя | всегда null — [Program.cs:207](../src/AiRecruiter/Program.cs#L207) |
+| `employer_id` | TEXT NULL | идентификатор работодателя | всегда null — [Program.cs:308](../src/AiRecruiter/Program.cs#L308) |
 | `score` | INTEGER NULL | оценка GigaChat 1..10 | [JobAnalyzer.cs:1004](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L1004) |
-| `first_seen` | TEXT NOT NULL | время первой записи в БД | [Program.cs:328](../src/AiRecruiter/Program.cs#L328) |
-| `analyzed_at` | TEXT NULL | время анализа или отправки | [Program.cs:391](../src/AiRecruiter/Program.cs#L391), [Program.cs:411](../src/AiRecruiter/Program.cs#L411), [Program.cs:432](../src/AiRecruiter/Program.cs#L432), [VacancyRepository.cs:138-140](../src/AiRecruiter/Storage/VacancyRepository.cs#L138-L140) |
+| `first_seen` | TEXT NOT NULL | время первой записи в БД | [Program.cs:300](../src/AiRecruiter/Program.cs#L300) |
+| `analyzed_at` | TEXT NULL | время анализа или отправки | [Program.cs:363](../src/AiRecruiter/Program.cs#L363), [Program.cs:383](../src/AiRecruiter/Program.cs#L383), [Program.cs:404](../src/AiRecruiter/Program.cs#L404), [VacancyRepository.cs:140-142](../src/AiRecruiter/Storage/VacancyRepository.cs#L140-L142) |
 | `tech_stack` | TEXT NULL | стек из описания вакансии | [HhParser.cs:664](../src/AiRecruiter/Parsers/HhParser.cs#L664) |
 
 ## Известные расхождения с решениями
 
 - `employer_id` всегда null —
-  [Program.cs:207](../src/AiRecruiter/Program.cs#L207),
-  [Program.cs:336](../src/AiRecruiter/Program.cs#L336),
-  [Program.cs:358](../src/AiRecruiter/Program.cs#L358),
-  [Program.cs:384](../src/AiRecruiter/Program.cs#L384),
-  [Program.cs:404](../src/AiRecruiter/Program.cs#L404),
-  [Program.cs:425](../src/AiRecruiter/Program.cs#L425); решение 0002 —
+  [Program.cs:308](../src/AiRecruiter/Program.cs#L308),
+  [Program.cs:330](../src/AiRecruiter/Program.cs#L330),
+  [Program.cs:356](../src/AiRecruiter/Program.cs#L356),
+  [Program.cs:376](../src/AiRecruiter/Program.cs#L376),
+  [Program.cs:397](../src/AiRecruiter/Program.cs#L397); решение 0002 —
   [employer_id из детальной страницы](adr/0002-employer-id-from-detail-page.md)
   — не реализовано.
-- `seen_vacancies.txt` ещё мигрируется —
-  [Program.cs:194-220](../src/AiRecruiter/Program.cs#L194-L220); лог
-  [Program.cs:247](../src/AiRecruiter/Program.cs#L247) упоминает файл; миграция
-  ещё выполняется; исправление — [roadmap 3.2a, шаг 3](roadmap.md).
 - `analysis_abandoned` отсутствует; статусы — строковые литералы, не константы —
-  [Program.cs:341](../src/AiRecruiter/Program.cs#L341),
-  [Program.cs:363](../src/AiRecruiter/Program.cs#L363),
-  [Program.cs:389](../src/AiRecruiter/Program.cs#L389),
-  [Program.cs:409](../src/AiRecruiter/Program.cs#L409),
-  [Program.cs:430](../src/AiRecruiter/Program.cs#L430),
-  [Program.cs:442](../src/AiRecruiter/Program.cs#L442); исправление —
+  [Program.cs:313](../src/AiRecruiter/Program.cs#L313),
+  [Program.cs:335](../src/AiRecruiter/Program.cs#L335),
+  [Program.cs:361](../src/AiRecruiter/Program.cs#L361),
+  [Program.cs:381](../src/AiRecruiter/Program.cs#L381),
+  [Program.cs:402](../src/AiRecruiter/Program.cs#L402),
+  [Program.cs:414](../src/AiRecruiter/Program.cs#L414); исправление —
   [roadmap 3.2a, шаг 6](roadmap.md).
 - Журнала `llm_calls`, таблиц `prompt_versions` и `candidate_profiles` в БД нет
   — не реализовано; исправление — [roadmap 3.2a, шаг 7](roadmap.md).
-- Таблица `meta` создаётся —
-  [VacancyRepository.cs:66-69](../src/AiRecruiter/Storage/VacancyRepository.cs#L66-L69)
-  — но не используется; исправление — [roadmap 3.2a, шаг 3](roadmap.md).
 - `GetScoreDistribution` —
-  [VacancyRepository.cs:156](../src/AiRecruiter/Storage/VacancyRepository.cs#L156)
+  [VacancyRepository.cs:158](../src/AiRecruiter/Storage/VacancyRepository.cs#L158)
   — вызывается только из тестов; гистограмма в итоговом отчёте считается в
-  памяти — [Program.cs:310](../src/AiRecruiter/Program.cs#L310),
-  [Program.cs:467](../src/AiRecruiter/Program.cs#L467); исправление —
+  памяти — [Program.cs:282](../src/AiRecruiter/Program.cs#L282),
+  [Program.cs:439](../src/AiRecruiter/Program.cs#L439); исправление —
   технический бэклог после 3.6 в [roadmap](roadmap.md).
 - [Program.cs:148](../src/AiRecruiter/Program.cs#L148) читает
   `candidate_summary.md` в неиспользуемую переменную; анализатор читает файл сам
