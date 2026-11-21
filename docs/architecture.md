@@ -21,7 +21,7 @@
 5. `resume.txt` / `profile.md` читаются, но в оценке не участвуют;
    `candidate_summary.md` — единственный источник, анализатор читает его сам —
    [JobAnalyzer.cs:98](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L98). При
-   отсутствии сводки — пустая сводка, в 3.2a — остановка на старте.
+   отсутствии сводки — пустая сводка.
 6. `workFormat`: area `113` → REMOTE, area `4` → любой, иначе REMOTE —
    [Program.cs:176-188](../src/AiRecruiter/Program.cs#L176-L188).
 7. Инициализация хранилища `vacancies.db` —
@@ -182,42 +182,48 @@ erDiagram
   — не реализовано.
 - `seen_vacancies.txt` ещё мигрируется —
   [Program.cs:194-220](../src/AiRecruiter/Program.cs#L194-L220); лог
-  [Program.cs:247](../src/AiRecruiter/Program.cs#L247) упоминает файл; удаление
-  миграции запланировано на 3.2a.
+  [Program.cs:247](../src/AiRecruiter/Program.cs#L247) упоминает файл; миграция
+  ещё выполняется, план — [roadmap 3.2a, шаг 3](roadmap.md).
 - `analysis_abandoned` отсутствует; статусы — строковые литералы, не константы —
   [Program.cs:341](../src/AiRecruiter/Program.cs#L341),
   [Program.cs:363](../src/AiRecruiter/Program.cs#L363),
   [Program.cs:389](../src/AiRecruiter/Program.cs#L389),
   [Program.cs:409](../src/AiRecruiter/Program.cs#L409),
   [Program.cs:430](../src/AiRecruiter/Program.cs#L430),
-  [Program.cs:442](../src/AiRecruiter/Program.cs#L442).
+  [Program.cs:442](../src/AiRecruiter/Program.cs#L442); план —
+  [roadmap 3.2a, шаг 6](roadmap.md).
 - Журнала `llm_calls`, таблиц `prompt_versions` и `candidate_profiles` в БД нет
-  — решение 3.2a пока не реализовано.
+  — не реализовано; план — [roadmap 3.2a, шаг 7](roadmap.md).
 - Таблица `meta` создаётся —
   [VacancyRepository.cs:66-69](../src/AiRecruiter/Storage/VacancyRepository.cs#L66-L69)
-  — но не используется.
+  — но не используется; план — [roadmap 3.2a, шаг 3](roadmap.md).
 - `GetScoreDistribution` —
   [VacancyRepository.cs:156](../src/AiRecruiter/Storage/VacancyRepository.cs#L156)
   — вызывается только из тестов; гистограмма в итоговом отчёте считается в
   памяти — [Program.cs:310](../src/AiRecruiter/Program.cs#L310),
-  [Program.cs:467](../src/AiRecruiter/Program.cs#L467).
+  [Program.cs:467](../src/AiRecruiter/Program.cs#L467); план — технический
+  бэклог после 3.6 в [roadmap](roadmap.md).
 - [Program.cs:148](../src/AiRecruiter/Program.cs#L148) читает
   `candidate_summary.md` в неиспользуемую переменную; анализатор читает файл сам
-  — [JobAnalyzer.cs:98](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L98).
+  — [JobAnalyzer.cs:98](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L98); план —
+  [roadmap 3.2a, шаг 5](roadmap.md).
 - В БД нет `experience` / `employment` / `work_format` / `published_at`, хотя
-  `Vacancy` их содержит — [Vacancy.cs](../src/AiRecruiter/Models/Vacancy.cs).
+  `Vacancy` их содержит — [Vacancy.cs](../src/AiRecruiter/Models/Vacancy.cs);
+  план — [roadmap 3.2a, шаг 4](roadmap.md).
 - Telegram не разбивает сообщения длиннее 4096 —
-  [TelegramNotifier.cs:78-99](../src/AiRecruiter/Notifiers/TelegramNotifier.cs#L78-L99).
+  [TelegramNotifier.cs:78-99](../src/AiRecruiter/Notifiers/TelegramNotifier.cs#L78-L99);
+  план — [roadmap 3.2a, шаг 8](roadmap.md).
 - `usage` / `completion_tokens` не читаются, критерий пересмотра `MaxTokens`
   ([ADR-0004](adr/0004-max-tokens-1200.md)) не измеряется; код-дефолт — 800 —
-  [JobAnalyzer.cs:102](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102).
+  [JobAnalyzer.cs:102](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102); план —
+  калибровка 3.2 в [roadmap](roadmap.md).
 - Контакты `Contacts:Fio/Tg/Phone/Email` читаются и проверяются на старте —
   [Program.cs:112-144](../src/AiRecruiter/Program.cs#L112-L144) — и собираются
   строкой — [Program.cs:144](../src/AiRecruiter/Program.cs#L144), но в промпт не
   попадают: поле только присваивается —
-  [JobAnalyzer.cs:97](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L97). По
-  [ADR-0011](adr/0011-contacts-in-cover-letter.md) контакты пишутся в конце
-  сопроводительного письма (3.3) и в анализ не входят.
+  [JobAnalyzer.cs:97](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L97). В анализ
+  не входят; план — [roadmap 3.3](roadmap.md)
+  ([ADR-0011](adr/0011-contacts-in-cover-letter.md)).
 
 ## Правило обновления
 
