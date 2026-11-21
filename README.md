@@ -1,13 +1,17 @@
 # AiRecruiter
 
-Консольное приложение на .NET 10: парсит hh.ru через AngleSharp (без официального API), оценивает вакансии через GigaChat и отправляет подходящие в Telegram.
+Консольное приложение на .NET 10: парсит hh.ru через AngleSharp (без
+официального API), оценивает вакансии через GigaChat и отправляет подходящие в
+Telegram.
 
 [![CI](https://github.com/H09an/AiRecruiter/actions/workflows/ci.yml/badge.svg)](https://github.com/H09an/AiRecruiter/actions/workflows/ci.yml)
 
 ## Что делает
 
 1. Парсит hh.ru через AngleSharp (без официального API).
-2. Анализирует вакансии через GigaChat с учётом `candidate_summary.md` — единственного источника для оценки ([JobAnalyzer.cs:518](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L518)).
+2. Анализирует вакансии через GigaChat с учётом `candidate_summary.md` —
+   единственного источника для оценки
+   ([JobAnalyzer.cs:518](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L518)).
 3. Отправляет подходящие вакансии в Telegram с оценкой соответствия.
 
 ## Требования
@@ -43,7 +47,10 @@ export TELEGRAM_CHAT_ID=...
 dotnet run --project src/AiRecruiter/AiRecruiter.csproj
 ```
 
-Запускайте приложение из корня репозитория: `appsettings.json` и `app.log` читаются и пишутся относительно текущей рабочей директории. Состояние вакансий — в SQLite-базе `vacancies.db`, она создаётся автоматически ([Program.cs:191-192](src/AiRecruiter/Program.cs#L191-L192)).
+Запускайте приложение из корня репозитория: `appsettings.json` и `app.log`
+читаются и пишутся относительно текущей рабочей директории. Состояние вакансий —
+в SQLite-базе `vacancies.db`, она создаётся автоматически
+([Program.cs:191-192](src/AiRecruiter/Program.cs#L191-L192)).
 
 ### Где взять секреты
 
@@ -64,9 +71,15 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj
 | `candidate_summary.md` | сводка навыков; единственный источник для оценки, анализатор читает файл сам — [JobAnalyzer.cs:98](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L98); при отсутствии — пустая сводка, в 3.2a — остановка на старте |
 | `vacancies.db` | состояние вакансий (SQLite), создаётся автоматически — [Program.cs:191-192](src/AiRecruiter/Program.cs#L191-L192), не коммитится |
 
-Отсутствие `resume.txt` или `profile.md` на оценку не влияет: их содержимое в промпт не попадает. Если отсутствует `candidate_summary.md`, анализатор работает с пустой сводкой и оценка теряет смысл; в 3.2a программа в этом случае останавливается на старте. Контакты `Contacts:Fio/Tg/Phone/Email` обязательны: без всех четырёх приложение завершает работу ([Program.cs:138-142](src/AiRecruiter/Program.cs#L138-L142)).
+Отсутствие `resume.txt` или `profile.md` на оценку не влияет: их содержимое в
+промпт не попадает. Если отсутствует `candidate_summary.md`, анализатор работает
+с пустой сводкой и оценка теряет смысл; в 3.2a программа в этом случае
+останавливается на старте. Контакты `Contacts:Fio/Tg/Phone/Email` обязательны:
+без всех четырёх приложение завершает работу
+([Program.cs:138-142](src/AiRecruiter/Program.cs#L138-L142)).
 
-Ctrl+C — остановиться после текущей вакансии, повторный Ctrl+C — немедленный выход.
+Ctrl+C — остановиться после текущей вакансии, повторный Ctrl+C — немедленный
+выход.
 
 ## Конфигурация
 
@@ -79,7 +92,8 @@ Ctrl+C — остановиться после текущей вакансии, 
 | `TELEGRAM_CHAT_ID` | да | id чата (целое число) |
 | `TELEGRAM_PROXY_URL`, `TELEGRAM_PROXY_USER`, `TELEGRAM_PROXY_PASSWORD` | нет | прокси для Telegram |
 
-Остальное — `appsettings.json` (в корне репозитория) или переменные окружения с `__` вместо `:` (например `Contacts__Email`):
+Остальное — `appsettings.json` (в корне репозитория) или переменные окружения с
+`__` вместо `:` (например `Contacts__Email`):
 
 | Ключ | По умолчанию | Описание |
 |---|---|---|
@@ -92,7 +106,10 @@ Ctrl+C — остановиться после текущей вакансии, 
 | `Filters:ExcludeTitleWords` | `[]` | слова в заголовке, при которых вакансия пропускается до GigaChat |
 | `Analyzer:MinScore` | `3` | минимальная оценка для отправки в Telegram |
 
-Политика отправки: отправка при `score >= Analyzer:MinScore` (по умолчанию 3). Метка «🔥 откликаться» при score ≥ 7, «💭 на подумать» при 3–6. Вакансии ниже порога — только в лог (и в БД со статусом `analyzed_low`); в Telegram не отправляются.
+Политика отправки: отправка при `score >= Analyzer:MinScore` (по умолчанию 3).
+Метка «🔥 откликаться» при score ≥ 7, «💭 на подумать» при 3–6. Вакансии ниже
+порога — только в лог (и в БД со статусом `analyzed_low`); в Telegram не
+отправляются.
 
 ## Структура репозитория
 
@@ -142,9 +159,9 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --parse-samples sampl
 dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --replay-failed failed_responses
 ```
 
-`--parse-samples` читает любую папку с HTML-страницами hh.ru. Реальные страницы в
-репозиторий не входят: сохраните нужные вакансии в `samples/` — папка указана в
-`.gitignore`. Быстрая проверка на синтетических фикстурах:
+`--parse-samples` читает любую папку с HTML-страницами hh.ru. Реальные страницы
+в репозиторий не входят: сохраните нужные вакансии в `samples/` — папка указана
+в `.gitignore`. Быстрая проверка на синтетических фикстурах:
 
 ```sh
 dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --parse-samples tests/Fixtures
@@ -170,7 +187,9 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --parse-samples tests
 dotnet test AiRecruiter.slnx
 ```
 
-- `HhParserTests` — регрессия парсера на синтетических фикстурах из `tests/Fixtures/`. Реальные страницы hh.ru проверяйте локально через `--parse-samples` и обновляйте ожидания при смене вёрстки.
+- `HhParserTests` — регрессия парсера на синтетических фикстурах из
+  `tests/Fixtures/`. Реальные страницы hh.ru проверяйте локально через
+  `--parse-samples` и обновляйте ожидания при смене вёрстки.
 - `JobAnalyzerDtoTests` — контракт разбора JSON-ответа GigaChat.
 - `IntConfigReaderTests` — чтение целых чисел из конфигурации.
 - `ConfigListTests` — чтение списков строк из конфигурации.
@@ -194,7 +213,8 @@ bash scripts/check-docs.sh
 
 Для PR: 0 предупреждений при сборке.
 
-История изменений — в [CHANGELOG.md](CHANGELOG.md). План этапов — в [docs/roadmap.md](docs/roadmap.md).
+История изменений — в [CHANGELOG.md](CHANGELOG.md). План этапов — в
+[docs/roadmap.md](docs/roadmap.md).
 
 ### Локальные хуки (необязательно)
 
@@ -207,11 +227,16 @@ lefthook install
 
 ## Ограничения и этика
 
-- hh.ru — только для личного некоммерческого использования; соблюдайте `robots.txt`.
-- Задержка 1–2 секунды между запросами к странице вакансии; 4–8 секунд между страницами поиска.
-- До 11 страниц поиска за один прогон (page 0–10); выход раньше — по лимиту новых вакансий.
-- Не используйте для массового сбора данных или коммерческих целей без разрешения hh.ru.
-- Проект не связан с hh.ru и Сбером. hh.ru, GigaChat и Telegram — товарные знаки соответствующих правообладателей.
+- hh.ru — только для личного некоммерческого использования; соблюдайте
+  `robots.txt`.
+- Задержка 1–2 секунды между запросами к странице вакансии; 4–8 секунд между
+  страницами поиска.
+- До 11 страниц поиска за один прогон (page 0–10); выход раньше — по лимиту
+  новых вакансий.
+- Не используйте для массового сбора данных или коммерческих целей без
+  разрешения hh.ru.
+- Проект не связан с hh.ru и Сбером. hh.ru, GigaChat и Telegram — товарные знаки
+  соответствующих правообладателей.
 
 ## Безопасность
 

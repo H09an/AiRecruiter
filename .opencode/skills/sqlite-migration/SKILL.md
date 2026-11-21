@@ -28,14 +28,14 @@ cp vacancies.db vacancies.db.bak
 - Проверять наличие колонки через `pragma_table_info('vacancies')`.
 - DDL и миграции — в транзакции.
 - `Initialize` идемпотентен: повторный вызов не меняет схему и данные.
-- Не удалять legacy-миграцию
-  `UPDATE ... analysis_failed` без разрешения на правку существующего теста.
+- Не удалять legacy-миграцию `UPDATE ... analysis_failed` без разрешения на
+  правку существующего теста.
 - Удаление `meta` — `DROP TABLE IF EXISTS meta`, убрать `CREATE`.
 - `Upsert` и `SetStatus` не трогают `attempts`; счётчик меняет только
   `SaveAnalysisAttempt` в одной транзакции с результатом.
 - `new` не входит в `GetLinksToSkip`; терминальные статусы — входят.
-- `description` хранится только у `analysis_failed` / `analysis_abandoned`;
-  при успехе очищается.
+- `description` хранится только у `analysis_failed` / `analysis_abandoned`; при
+  успехе очищается.
 
 ## Тесты
 

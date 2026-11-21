@@ -31,15 +31,14 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj -c Release --no-build --
 
 ## Жёсткие правила
 
-- `employer_id` брать только у
-  `[data-qa='vacancy-company-name']` на детальной странице.
-- Извлекать `/employer/(\d+)`; поддерживать относительные и абсолютные
-  ссылки.
+- `employer_id` брать только у `[data-qa='vacancy-company-name']` на детальной
+  странице.
+- Извлекать `/employer/(\d+)`; поддерживать относительные и абсолютные ссылки.
 - Не брать первый `/employer/` из HTML: на странице бывают decoy-ссылки.
-- `Experience` — только белый список: `не требуется`, `без опыта`,
-  `1–3 года`, `3–6 лет`, `более 6 лет`, `от N лет`.
-- Fallback по тексту не должен давать мусор вроде
-  «с системами управления тестированием»; при несовпадении — пусто и лог.
+- `Experience` — только белый список: `не требуется`, `без опыта`, `1–3 года`,
+  `3–6 лет`, `более 6 лет`, `от N лет`.
+- Fallback по тексту не должен давать мусор вроде «с системами управления
+  тестированием»; при несовпадении — пусто и лог.
 - `DescriptionNotLoaded` — не описание; `HasDescription` его исключает.
 - `Requirements`/`Responsibilities`/`Conditions` — секции; `TechStack` —
   отдельный блок, не замена описанию.
@@ -49,8 +48,8 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj -c Release --no-build --
 
 - `HhParserTests` на синтетических фикстурах.
 - Новые случаи: `employer_id` из относительной и абсолютной ссылки,
-  decoy-ссылки, `Experience` на `only_requirements.html` пустой, поля
-  вакансии заполнены.
+  decoy-ссылки, `Experience` на `only_requirements.html` пустой, поля вакансии
+  заполнены.
 - Существующие тесты не удалять; менять только с обоснованием.
 
 ## Запрещено
