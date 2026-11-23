@@ -24,10 +24,10 @@
 
 Текущее состояние кода:
 
-- чтение порога — [Program.cs:194](../../src/AiRecruiter/Program.cs#L194);
-- метка при отправке — [Program.cs:412](../../src/AiRecruiter/Program.cs#L412);
+- чтение порога — [Program.cs:195](../../src/AiRecruiter/Program.cs#L195);
+- метка при отправке — [Program.cs:454](../../src/AiRecruiter/Program.cs#L454);
 - повторная отправка: оценка ниже нового порога переводится в `analyzed_low` —
-  [Program.cs:472-475](../../src/AiRecruiter/Program.cs#L472-L475).
+  [Program.cs:517-521](../../src/AiRecruiter/Program.cs#L517-L521).
 
 ## Последствия
 

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Тестировщик — абсолютная ссылка работодателя</title>
+</head>
+<body>
+<main>
+  <h1 data-qa="vacancy-title">Тестировщик (фикстура: employer абсолютная)</h1>
+
+  <a href="https://example-decoy.ru/employer/9999999"> Приманка вне блока компании </a>
+  <div data-qa="vacancy-company-name">
+    <a href="https://hh.ru/employer/7654321"> Вымышленная компания </a>
+  </div>
+
+  <div data-qa="vacancy-description">
+    <p>Синтетическая вакансия для проверки извлечения employer_id из
+    абсолютной ссылки компании hh.ru. Данные вымышлены и нужны только для
+    регрессионных тестов парсера hh.ru.</p>
+  </div>
+</main>
+</body>
+</html>

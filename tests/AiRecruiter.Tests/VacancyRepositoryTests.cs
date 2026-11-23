@@ -429,4 +429,99 @@ public sealed class VacancyRepositoryTests : IDisposable
         Assert.Null(QueryScalar(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'meta'"));
     }
+
+    [Fact]
+    public void Initialize_LegacySchemaWithoutNewColumns_AddsFourColumnsWithoutRowLoss()
+    {
+        // Схема до шага 4: без experience/employment/work_format/published_at.
+        var legacyPath = Path.Combine(Path.GetTempPath(), $"vacancies_test_{Guid.NewGuid():N}.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={legacyPath}"))
+            {
+                connection.Open();
+                connection.Execute("""
+                    CREATE TABLE vacancies (
+                        link TEXT PRIMARY KEY,
+                        employer_id TEXT,
+                        title TEXT,
+                        company TEXT,
+                        salary TEXT,
+                        score INTEGER,
+                        status TEXT NOT NULL,
+                        first_seen TEXT NOT NULL,
+                        analyzed_at TEXT,
+                        fail_reason TEXT,
+                        comment TEXT,
+                        cover_letter TEXT,
+                        tech_stack TEXT
+                    );
+                    INSERT INTO vacancies (link, status, first_seen) VALUES
+                        ('https://hh.ru/vacancy/1', 'seen', '2026-01-01T00:00:00.0000000Z'),
+                        ('https://hh.ru/vacancy/2', 'analyzed_low', '2026-01-01T00:00:00.0000000Z');
+                    """);
+            }
+
+            var repository = new VacancyRepository(legacyPath);
+            repository.Initialize();
+            repository.Initialize();
+
+            using (var connection = new SqliteConnection($"Data Source={legacyPath}"))
+            {
+                connection.Open();
+                foreach (var column in new[] { "experience", "employment", "work_format", "published_at" })
+                {
+                    Assert.Equal(
+                        column,
+                        connection.ExecuteScalar<string>(
+                            "SELECT name FROM pragma_table_info('vacancies') WHERE name = @column",
+                            new { column }));
+                }
+
+                Assert.Equal(
+                    2,
+                    connection.ExecuteScalar<long>("SELECT COUNT(*) FROM vacancies"));
+                Assert.Equal(
+                    "seen",
+                    connection.ExecuteScalar<string>(
+                        "SELECT status FROM vacancies WHERE link = 'https://hh.ru/vacancy/1'"));
+                Assert.Equal(
+                    "analyzed_low",
+                    connection.ExecuteScalar<string>(
+                        "SELECT status FROM vacancies WHERE link = 'https://hh.ru/vacancy/2'"));
+            }
+        }
+        finally
+        {
+            foreach (var suffix in DatabaseFileSuffixes)
+            {
+                var path = legacyPath + suffix;
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void Upsert_NewStatus_InGetAllLinks_ButNotInSkipList()
+    {
+        _repository.Upsert(Record(status: "new"));
+
+        Assert.Contains("https://hh.ru/vacancy/1", _repository.GetAllLinks());
+        Assert.DoesNotContain("https://hh.ru/vacancy/1", _repository.GetLinksToSkip());
+    }
+
+    [Fact]
+    public void Upsert_FilteredStatuses_KeptAndIncludedInSkipList()
+    {
+        _repository.Upsert(Record(link: "https://hh.ru/vacancy/1", status: "filtered_stopword"));
+        _repository.Upsert(Record(link: "https://hh.ru/vacancy/2", status: "filtered_salary"));
+
+        Assert.Equal("filtered_stopword", QueryScalar("SELECT status FROM vacancies WHERE link = 'https://hh.ru/vacancy/1'"));
+        Assert.Equal("filtered_salary", QueryScalar("SELECT status FROM vacancies WHERE link = 'https://hh.ru/vacancy/2'"));
+        Assert.Contains("https://hh.ru/vacancy/1", _repository.GetLinksToSkip());
+        Assert.Contains("https://hh.ru/vacancy/2", _repository.GetLinksToSkip());
+    }
 }

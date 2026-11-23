@@ -6,9 +6,10 @@ namespace AiRecruiter.Storage;
 
 /// <summary>
 /// Запись о вакансии в SQLite. Status — одна из строк статуса жизненного цикла:
-/// seen, filtered_stopword, filtered_salary, analyzed_low, analyzed_ok, sent,
-/// send_failed, analysis_failed. Comment/CoverLetter/TechStack — сохранённый
-/// результат анализа, необходимый для повторной отправки без GigaChat.
+/// new, seen, filtered_stopword, filtered_salary, analyzed_low, analyzed_ok,
+/// sent, send_failed, analysis_failed. Comment/CoverLetter/TechStack —
+/// сохранённый результат анализа, необходимый для повторной отправки без
+/// GigaChat.
 /// </summary>
 internal sealed record VacancyRecord(
     string Link,
@@ -23,7 +24,11 @@ internal sealed record VacancyRecord(
     string? FailReason,
     string? Comment = null,
     string? CoverLetter = null,
-    string? TechStack = null);
+    string? TechStack = null,
+    string? Experience = null,
+    string? Employment = null,
+    string? WorkFormat = null,
+    string? PublishedAt = null);
 
 /// <summary>
 /// Хранилище состояния вакансий в SQLite (vacancies.db). Соединение открывается
@@ -62,7 +67,11 @@ internal sealed class VacancyRepository
                 fail_reason TEXT,
                 comment TEXT,
                 cover_letter TEXT,
-                tech_stack TEXT
+                tech_stack TEXT,
+                experience TEXT,
+                employment TEXT,
+                work_format TEXT,
+                published_at TEXT
             );
             """, transaction: transaction);
 
@@ -74,7 +83,11 @@ internal sealed class VacancyRepository
             .Query<string>("SELECT name FROM pragma_table_info('vacancies')", transaction: transaction)
             .AsList();
 
-        foreach (var column in new[] { "comment", "cover_letter", "tech_stack" })
+        foreach (var column in new[]
+                 {
+                     "comment", "cover_letter", "tech_stack",
+                     "experience", "employment", "work_format", "published_at",
+                 })
         {
             if (existingColumns.Contains(column, StringComparer.OrdinalIgnoreCase))
             {
@@ -85,7 +98,12 @@ internal sealed class VacancyRepository
             {
                 "comment" => "ALTER TABLE vacancies ADD COLUMN comment TEXT",
                 "cover_letter" => "ALTER TABLE vacancies ADD COLUMN cover_letter TEXT",
-                _ => "ALTER TABLE vacancies ADD COLUMN tech_stack TEXT",
+                "tech_stack" => "ALTER TABLE vacancies ADD COLUMN tech_stack TEXT",
+                "experience" => "ALTER TABLE vacancies ADD COLUMN experience TEXT",
+                "employment" => "ALTER TABLE vacancies ADD COLUMN employment TEXT",
+                "work_format" => "ALTER TABLE vacancies ADD COLUMN work_format TEXT",
+                "published_at" => "ALTER TABLE vacancies ADD COLUMN published_at TEXT",
+                _ => throw new InvalidOperationException($"Нет ветки миграции для колонки {column}"),
             };
 
             connection.Execute(alterSql, transaction: transaction);
@@ -117,8 +135,8 @@ internal sealed class VacancyRepository
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
         connection.Execute("""
-            INSERT INTO vacancies (link, employer_id, title, company, salary, score, status, first_seen, analyzed_at, fail_reason, comment, cover_letter, tech_stack)
-            VALUES (@Link, @EmployerId, @Title, @Company, @Salary, @Score, @Status, @FirstSeen, @AnalyzedAt, @FailReason, @Comment, @CoverLetter, @TechStack)
+            INSERT INTO vacancies (link, employer_id, title, company, salary, score, status, first_seen, analyzed_at, fail_reason, comment, cover_letter, tech_stack, experience, employment, work_format, published_at)
+            VALUES (@Link, @EmployerId, @Title, @Company, @Salary, @Score, @Status, @FirstSeen, @AnalyzedAt, @FailReason, @Comment, @CoverLetter, @TechStack, @Experience, @Employment, @WorkFormat, @PublishedAt)
             ON CONFLICT(link) DO UPDATE SET
                 employer_id = @EmployerId,
                 title = @Title,
@@ -130,7 +148,11 @@ internal sealed class VacancyRepository
                 fail_reason = @FailReason,
                 comment = @Comment,
                 cover_letter = @CoverLetter,
-                tech_stack = @TechStack
+                tech_stack = @TechStack,
+                experience = @Experience,
+                employment = @Employment,
+                work_format = @WorkFormat,
+                published_at = @PublishedAt
             """, record);
     }
 

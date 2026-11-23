@@ -249,6 +249,7 @@ public static class HhParser
                 {
                     Title = title,
                     Company = resolvedCompany,
+                    EmployerId = details?.EmployerId ?? string.Empty,
                     Salary = salary,
                     Link = link,
                     Description = description,
@@ -387,10 +388,12 @@ public static class HhParser
             }
         }
 
-        vacancy.Experience = GetText(document.QuerySelector("[data-qa='vacancy-experience']"));
+        vacancy.EmployerId = GetEmployerId(document);
+
+        vacancy.Experience = NormalizeExperience(GetText(document.QuerySelector("[data-qa='vacancy-experience']")), link);
         if (string.IsNullOrWhiteSpace(vacancy.Experience))
         {
-            vacancy.Experience = GetText(document.QuerySelector("[data-qa='work-experience-text'] dd"));
+            vacancy.Experience = NormalizeExperience(GetText(document.QuerySelector("[data-qa='work-experience-text'] dd")), link);
         }
         if (string.IsNullOrWhiteSpace(vacancy.Experience))
         {
@@ -400,19 +403,38 @@ public static class HhParser
                 var expText = GetText(expElement);
                 if (!string.IsNullOrWhiteSpace(expText))
                 {
-                    vacancy.Experience = expText.Replace("Опыт работы:", string.Empty).Replace("Опыт работы", string.Empty).Trim().TrimStart(':').Trim();
+                    vacancy.Experience = NormalizeExperience(expText, link);
                 }
             }
         }
         if (string.IsNullOrWhiteSpace(vacancy.Experience))
         {
             var mainText = GetMainText(document);
-            var expMatch = Regex.Match(mainText, @"Опыт работы[:\s]*([^\n]{1,40})")
-                ?? Regex.Match(mainText, @"(\d+\s*[–-]\s*\d+\s*(лет|года|год))")
-                ?? Regex.Match(mainText, @"(без опыта|от \d+ лет|более \d+ лет)");
-            if (expMatch.Success)
+            string? expFound = null;
+            var labeledMatch = Regex.Match(mainText, @"Опыт работы[:\s]*([^\n]{1,40})");
+            if (labeledMatch.Success)
             {
-                vacancy.Experience = NormalizeInline(expMatch.Groups[1].Value);
+                expFound = labeledMatch.Groups[1].Value;
+            }
+            if (expFound is null)
+            {
+                var yearsMatch = Regex.Match(mainText, @"(\d+\s*[–-]\s*\d+\s*(лет|года|год))");
+                if (yearsMatch.Success)
+                {
+                    expFound = yearsMatch.Groups[1].Value;
+                }
+            }
+            if (expFound is null)
+            {
+                var plainMatch = Regex.Match(mainText, @"(без опыта|от \d+ лет|более \d+ лет)");
+                if (plainMatch.Success)
+                {
+                    expFound = plainMatch.Groups[1].Value;
+                }
+            }
+            if (expFound is not null)
+            {
+                vacancy.Experience = NormalizeExperience(expFound, link);
             }
         }
         if (string.IsNullOrWhiteSpace(vacancy.Experience))
@@ -641,9 +663,9 @@ public static class HhParser
         if (descriptionElement is null)
         {
             var longestBlock = GetLongestDescriptionBlock(document);
-            if (longestBlock is not null && longestBlock.Value.Element is not null)
+            if (longestBlock is not null && longestBlock.Value.Element is IElement longestElement)
             {
-                descriptionElement = longestBlock.Value.Element!;
+                descriptionElement = longestElement;
                 descriptionSource = longestBlock.Value.Source;
                 Logger.Log($"[HhParser] Description взят из longest-block для {link}");
             }
@@ -1544,6 +1566,89 @@ public static class HhParser
 
     private static string GetText(IElement? element) =>
         element is null ? string.Empty : NormalizeInline(element.TextContent);
+
+    /// <summary>
+    /// employer_id берётся только у элемента компании
+    /// <c>[data-qa='vacancy-company-name']</c>: собственный href, если элемент
+    /// сам <c>a[href]</c>, иначе первый <c>a[href]</c> внутри. Decoy-ссылки и
+    /// ссылки из карточек поиска игнорируются; без href — пусто.
+    /// </summary>
+    private static string GetEmployerId(IDocument document)
+    {
+        var companyElement = document.QuerySelector("[data-qa='vacancy-company-name']");
+        if (companyElement is null)
+        {
+            return string.Empty;
+        }
+
+        string? href = null;
+        if (string.Equals(companyElement.LocalName, "a", StringComparison.OrdinalIgnoreCase)
+            && companyElement.HasAttribute("href"))
+        {
+            href = companyElement.GetAttribute("href");
+        }
+
+        if (string.IsNullOrWhiteSpace(href))
+        {
+            href = companyElement.QuerySelector("a[href]")?.GetAttribute("href");
+        }
+
+        if (string.IsNullOrWhiteSpace(href))
+        {
+            return string.Empty;
+        }
+
+        var match = Regex.Match(href, @"/employer/(\d+)");
+        return match.Success ? match.Groups[1].Value : string.Empty;
+    }
+
+    /// <summary>
+    /// Белый список значений опыта: «не требуется», «без опыта», «1–3 года»,
+    /// «3–6 лет», «более 6 лет», «от N лет». Несовпадение — пусто и запись
+    /// в лог без текста описания.
+    /// </summary>
+    private static string NormalizeExperience(string? text, string link)
+    {
+        var normalized = NormalizeInline(text);
+        if (normalized.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var value = normalized
+            .Replace("Опыт работы:", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("Опыт работы", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Trim()
+            .TrimStart(':')
+            .Trim();
+        value = value
+            .Replace('\u2014', '–')
+            .Replace('\u2212', '–')
+            .Replace('-', '–');
+        value = Regex.Replace(value, @"\s+", " ").Trim();
+
+        var fixedValues = new[]
+        {
+            "не требуется", "без опыта", "1–3 года", "3–6 лет", "более 6 лет",
+        };
+        foreach (var candidate in fixedValues)
+        {
+            if (string.Equals(value, candidate, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        var fromYears = Regex.Match(
+            value, @"^от\s+(\d+)\s+лет$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (fromYears.Success)
+        {
+            return $"от {fromYears.Groups[1].Value} лет";
+        }
+
+        Logger.Log($"[HhParser] Experience не соответствует белому списку для {link}");
+        return string.Empty;
+    }
 
     private static string NormalizeInline(string? text)
     {

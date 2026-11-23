@@ -33,6 +33,7 @@ public sealed class Program
                 Console.WriteLine($"=== {Path.GetFileName(file)} ===");
                 Console.WriteLine($"Title: {vacancy.Title}");
                 Console.WriteLine($"Company: {vacancy.Company}");
+                Console.WriteLine($"EmployerId: {vacancy.EmployerId}");
                 Console.WriteLine($"Salary: {vacancy.Salary}");
                 Console.WriteLine($"Experience: {vacancy.Experience}");
                 Console.WriteLine($"WorkFormat: {vacancy.WorkFormat}");
@@ -66,9 +67,9 @@ public sealed class Program
             foreach (var file in Directory.GetFiles(dir, "*.txt").OrderBy(f => f))
             {
                 var raw = await File.ReadAllTextAsync(file);
-                if (JobAnalyzer.TryParseAndValidateDto(raw, out var dto, out var reason))
+                if (JobAnalyzer.TryParseAndValidateDto(raw, out var dto, out var reason) && dto is not null)
                 {
-                    Console.WriteLine($"OK score={dto!.Score} | {Path.GetFileName(file)}");
+                    Console.WriteLine($"OK score={dto.Score} | {Path.GetFileName(file)}");
                 }
                 else
                 {
@@ -305,7 +306,7 @@ public sealed class Program
                     Logger.Log($"[Пропущено] Стоп-слово '{excludedWord}': {vacancy.Title} | {vacancy.Link}");
                     repository.Upsert(new VacancyRecord(
                         Link: vacancy.Link,
-                        EmployerId: null,
+                        EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
                         Title: vacancy.Title,
                         Company: vacancy.Company,
                         Salary: vacancy.Salary,
@@ -316,7 +317,11 @@ public sealed class Program
                         FailReason: null,
                         Comment: null,
                         CoverLetter: null,
-                        TechStack: vacancy.TechStack));
+                        TechStack: vacancy.TechStack,
+                        Experience: ToDbValue(vacancy.Experience),
+                        Employment: ToDbValue(vacancy.Employment),
+                        WorkFormat: ToDbValue(vacancy.WorkFormat),
+                        PublishedAt: ToDbValue(vacancy.PublishedAt)));
                     skipLinks.Add(vacancy.Link);
                     continue;
                 }
@@ -327,7 +332,7 @@ public sealed class Program
                     Logger.Log($"[Пропущено] Зарплата ниже порога ({lowerBound} < {minSalary}): {vacancy.Title} | {vacancy.Link}");
                     repository.Upsert(new VacancyRecord(
                         Link: vacancy.Link,
-                        EmployerId: null,
+                        EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
                         Title: vacancy.Title,
                         Company: vacancy.Company,
                         Salary: vacancy.Salary,
@@ -338,11 +343,36 @@ public sealed class Program
                         FailReason: null,
                         Comment: null,
                         CoverLetter: null,
-                        TechStack: vacancy.TechStack));
+                        TechStack: vacancy.TechStack,
+                        Experience: ToDbValue(vacancy.Experience),
+                        Employment: ToDbValue(vacancy.Employment),
+                        WorkFormat: ToDbValue(vacancy.WorkFormat),
+                        PublishedAt: ToDbValue(vacancy.PublishedAt)));
                     skipLinks.Add(vacancy.Link);
                     salaryFiltered++;
                     continue;
                 }
+
+                // Строка создаётся до анализа со статусом new; при исключении она
+                // останется new без fail_reason (обработка — шаг 6).
+                repository.Upsert(new VacancyRecord(
+                    Link: vacancy.Link,
+                    EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
+                    Title: vacancy.Title,
+                    Company: vacancy.Company,
+                    Salary: vacancy.Salary,
+                    Score: null,
+                    Status: "new",
+                    FirstSeen: nowIso,
+                    AnalyzedAt: null,
+                    FailReason: null,
+                    Comment: null,
+                    CoverLetter: null,
+                    TechStack: vacancy.TechStack,
+                    Experience: ToDbValue(vacancy.Experience),
+                    Employment: ToDbValue(vacancy.Employment),
+                    WorkFormat: ToDbValue(vacancy.WorkFormat),
+                    PublishedAt: ToDbValue(vacancy.PublishedAt)));
 
                 try
                 {
@@ -353,7 +383,7 @@ public sealed class Program
                         Logger.Log($"[Пропущено] {vacancy.Title} | {vacancy.Link} | {result.Comment}");
                         repository.Upsert(new VacancyRecord(
                             Link: vacancy.Link,
-                            EmployerId: null,
+                            EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
                             Title: vacancy.Title,
                             Company: vacancy.Company,
                             Salary: vacancy.Salary,
@@ -364,7 +394,11 @@ public sealed class Program
                             FailReason: result.Comment,
                             Comment: null,
                             CoverLetter: null,
-                            TechStack: vacancy.TechStack));
+                            TechStack: vacancy.TechStack,
+                            Experience: ToDbValue(vacancy.Experience),
+                            Employment: ToDbValue(vacancy.Employment),
+                            WorkFormat: ToDbValue(vacancy.WorkFormat),
+                            PublishedAt: ToDbValue(vacancy.PublishedAt)));
                         skipLinks.Add(vacancy.Link);
                     }
                     else if (result.Score < minScore)
@@ -373,7 +407,7 @@ public sealed class Program
                         Logger.Log($"[Оценка ниже порога] score={result.Score} < {minScore}: {vacancy.Title} | {vacancy.Link}");
                         repository.Upsert(new VacancyRecord(
                             Link: vacancy.Link,
-                            EmployerId: null,
+                            EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
                             Title: vacancy.Title,
                             Company: vacancy.Company,
                             Salary: vacancy.Salary,
@@ -384,7 +418,11 @@ public sealed class Program
                             FailReason: null,
                             Comment: result.Comment,
                             CoverLetter: result.CoverLetter,
-                            TechStack: vacancy.TechStack));
+                            TechStack: vacancy.TechStack,
+                            Experience: ToDbValue(vacancy.Experience),
+                            Employment: ToDbValue(vacancy.Employment),
+                            WorkFormat: ToDbValue(vacancy.WorkFormat),
+                            PublishedAt: ToDbValue(vacancy.PublishedAt)));
                         skipLinks.Add(vacancy.Link);
                         scoreCounts[result.Score]++;
                         belowThresholdCount++;
@@ -394,7 +432,7 @@ public sealed class Program
                         Logger.Log($"[Оценка: {result.Score}/10] {vacancy} - {result.Comment}");
                         repository.Upsert(new VacancyRecord(
                             Link: vacancy.Link,
-                            EmployerId: null,
+                            EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
                             Title: vacancy.Title,
                             Company: vacancy.Company,
                             Salary: vacancy.Salary,
@@ -405,7 +443,11 @@ public sealed class Program
                             FailReason: null,
                             Comment: result.Comment,
                             CoverLetter: result.CoverLetter,
-                            TechStack: vacancy.TechStack));
+                            TechStack: vacancy.TechStack,
+                            Experience: ToDbValue(vacancy.Experience),
+                            Employment: ToDbValue(vacancy.Employment),
+                            WorkFormat: ToDbValue(vacancy.WorkFormat),
+                            PublishedAt: ToDbValue(vacancy.PublishedAt)));
 
                         // Политика отправки: score >= minScore — в Telegram;
                         // метка 🔥 при score >= 7, иначе 💭.
@@ -457,6 +499,10 @@ public sealed class Program
             Logger.Log("=== Завершение программы ===");
         }
     }
+
+    /// <summary>Пустая строка в БД хранится как null.</summary>
+    private static string? ToDbValue(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>
     /// Повторная отправка в Telegram из сохранённого результата анализа

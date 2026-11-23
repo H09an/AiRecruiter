@@ -112,4 +112,85 @@ public class HhParserTests
         Assert.Contains("SQL", vacancy.KeySkills);
         Assert.Contains("Python", vacancy.KeySkills);
     }
+
+    [Fact]
+    public async Task FixtureEmployerRelative_ExtractsIdFromRelativeLink()
+    {
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "employer_relative.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "employer_relative.html");
+
+        Assert.Equal("1234567", vacancy.EmployerId);
+    }
+
+    [Fact]
+    public async Task FixtureEmployerAbsolute_ExtractsIdFromAbsoluteLink()
+    {
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "employer_absolute.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "employer_absolute.html");
+
+        Assert.Equal("7654321", vacancy.EmployerId);
+    }
+
+    [Fact]
+    public async Task FixtureEmployerDecoy_CompanyWithoutLink_KeepsEmployerIdEmpty()
+    {
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "employer_decoy.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "employer_decoy.html");
+
+        Assert.Equal(string.Empty, vacancy.EmployerId);
+    }
+
+    [Fact]
+    public async Task FixtureOnlyRequirements_ExperienceIsEmpty()
+    {
+        var html = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "only_requirements.html"));
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "only_requirements.html");
+
+        Assert.Equal(string.Empty, vacancy.Experience);
+    }
+
+    [Theory]
+    [InlineData("Опыт работы: 1-3 года", "1–3 года")]
+    [InlineData("не требуется", "не требуется")]
+    [InlineData("Без опыта", "без опыта")]
+    [InlineData("более 6 лет", "более 6 лет")]
+    [InlineData("от 5 лет", "от 5 лет")]
+    [InlineData("3—6 лет", "3–6 лет")]
+    public async Task ParseVacancyHtml_ExperienceWhitelist_AcceptsValidForms(
+        string source, string expected)
+    {
+        var html = $"""
+            <!DOCTYPE html>
+            <html lang="ru"><head><meta charset="utf-8"></head><body><main>
+            <h1 data-qa="vacancy-title">Тестировщик</h1>
+            <p data-qa="vacancy-experience">{source}</p>
+            <div data-qa="vacancy-description">
+              <p>Синтетическое описание достаточной длины для проверки белого
+              списка опыта; данные вымышлены и нужны только для тестов.</p>
+            </div>
+            </main></body></html>
+            """;
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "inline_experience.html");
+
+        Assert.Equal(expected, vacancy.Experience);
+    }
+
+    [Fact]
+    public async Task ParseVacancyHtml_ExperienceWhitelist_RejectsGarbage()
+    {
+        var html = $"""
+            <!DOCTYPE html>
+            <html lang="ru"><head><meta charset="utf-8"></head><body><main>
+            <h1 data-qa="vacancy-title">Тестировщик</h1>
+            <p data-qa="vacancy-experience">с системами управления тестированием.</p>
+            <div data-qa="vacancy-description">
+              <p>Синтетическое описание достаточной длины для проверки белого
+              списка опыта; данные вымышлены и нужны только для тестов.</p>
+            </div>
+            </main></body></html>
+            """;
+        var vacancy = await HhParser.ParseVacancyHtmlAsync(html, "inline_experience_garbage.html");
+
+        Assert.Equal(string.Empty, vacancy.Experience);
+    }
 }

@@ -128,7 +128,15 @@
   до коммита 3; в девять шагов 3.2a не входит, номера шагов не меняет;
 - коммит 3 — удаление `meta` и миграции `seen_vacancies.txt`, `Initialize` в
   транзакции — сделано;
-- следующий — коммит 4; коммиты 4–9 не начаты.
+- P0 и P1 — подготовительные правки: операторы `!` в `Program`, `HhParser`,
+  `JobAnalyzer`; правило рабочего каталога в `AGENTS.md` и `stage-runbook`;
+  `seen` в списке статусов `Program`; два известных расхождения; метки
+  `CHANGELOG`; даты ADR-0002/0006; идентификатор модели — вошли в коммит 4
+  по решению владельца, отдельными коммитами не оформлялись;
+- коммит 4 — `employer_id`, белый список `Experience`, поля
+  `experience`/`employment`/`work_format`/`published_at`, статус `new` до
+  анализа, вывод `EmployerId`, фикстуры и тесты — сделано;
+- следующий — коммит 5; коммиты 5–9 не начаты.
 
 **Цель:** подготовить данные и схему для калибровки, убрать технический долг.
 
@@ -479,14 +487,18 @@ Repair:
 Порядок из девяти коммитов согласован заказчиком; порог `Analyzer:MinScore` —
 коммит 2.
 
+P0 и P1 — подготовительные правки, выполненные до коммита 4. По решению
+владельца они вошли в коммит 4 одним коммитом, отдельными коммитами не
+оформлялись; девять шагов и их номера не меняются.
+
 | Шаг | Коммит | Что входит | Документы | Статус |
 |---|---|---|---|---|
 | 1 | `docs: этап 3.2a, коммит 1 — документация и правило обновления` | `docs/architecture.md`, ADR-0001–0008, `scripts/check-docs.sh`, правило в `AGENTS.md`, README/CHANGELOG, lefthook и CI | — | `done` |
 | 2 | `chore: порог Telegram Analyzer:MinScore 7 → 3, ADR-0009` | код, пример конфига, README, AGENTS, ADR-0007/0009, architecture, CHANGELOG | — | `done` |
 | 3 | `chore: удалить meta и миграцию seen_vacancies (этап 3.2a, коммит 3)` | Удалить `meta` и миграцию `seen_vacancies.txt`; `Initialize` в транзакции; тесты на удаление `meta`, идемпотентность и сохранность данных. Детали — ниже | README, architecture, ADR-0001, AGENTS, roadmap, CHANGELOG | `done` |
-| 4 | `feat(parser): employer_id, опыт и поля вакансии (этап 3.2a, коммит 4)` | `EmployerId`, белый список `Experience`, поля `experience`/`employment`/`work_format`/`published_at`, вывод `EmployerId` в `--parse-samples`, фикстуры и тесты | architecture, CHANGELOG | `planned` |
+| 4 | `feat(parser): employer_id, опыт и поля вакансии (этап 3.2a, коммит 4)` | `EmployerId`, белый список `Experience`, поля `experience`/`employment`/`work_format`/`published_at`, статус `new` до анализа, вывод `EmployerId` в `--parse-samples`, фикстуры и тесты | architecture, CHANGELOG | `done` |
 | 5 | `feat(prompt): сводка один раз, полное описание, comment (этап 3.2a, коммит 5)` | чтение сводки в `Program`, правило полного описания, колонка `description` и политика её хранения, три правила comment, repair (system/user), удаление `НАВЫКИ КАНДИДАТА`, `resume/profile/contacts` из оценщика (чтение и проверка `Contacts:*` в `Program` остаются), мёртвого `vacancyDescription`, флаг 4000, код-дефолты `MaxTokens` 1200 и модели `GigaChat-2-Pro` | architecture, README, CHANGELOG | `planned` |
-| 6 | `feat(storage): attempts и analysis_abandoned (этап 3.2a, коммит 6)` | `attempts`, `SaveAnalysisAttempt`, `SaveFiltered` / `SaveAnalysis` вместо шести копий `Upsert`, статусы-константы, `analysis_abandoned`, путь исключения, sweep на старте, отчёт | architecture, AGENTS, CHANGELOG | `planned` |
+| 6 | `feat(storage): attempts и analysis_abandoned (этап 3.2a, коммит 6)` | `attempts`, `SaveAnalysisAttempt`, `SaveFiltered` / `SaveAnalysis` вместо шести копий `Upsert` (в шаге 4 добавлена шестая копия — статус `new` до анализа), статусы-константы, `analysis_abandoned`, путь исключения, sweep на старте, отчёт | architecture, AGENTS, CHANGELOG | `planned` |
 | 7 | `feat(storage): журнал llm_calls (этап 3.2a, коммит 7)` | `llm_calls`, `prompt_versions`, `candidate_profiles`, `GigaChatCallResult` (токены, модель, `http_attempts`), сумма токенов за прогон, политика `raw_response`, `main_text_source` | architecture, CHANGELOG, ADR о журнале | `planned` |
 | 8 | `feat(telegram): новый вид и лимит 4096 (этап 3.2a, коммит 8)` | новые строки, пустые поля, экранирование, второе сообщение, поля в retry; `SendAndRecord` вместо двух копий отправки; типизированный `PendingSend` вместо dynamic | architecture, CHANGELOG | `planned` |
 | 9 | `chore: финальная сверка и приёмка 3.2a (этап 3.2a, коммит 9)` | тесты на текущие словоформы заголовков и ложные срабатывания, сверка README/AGENTS/CHANGELOG/architecture, полная приёмка | README, AGENTS, architecture, CHANGELOG | `planned` |
@@ -514,9 +526,10 @@ Repair:
   потери данных, повторный `Initialize` ничего не меняет; `meta` удалена;
   миграция `seen_vacancies.txt` удалена; legacy-миграция
   `UPDATE ... analysis_failed` сохранена;
-- [ ] запись о вакансии создаётся после фильтров и до анализа со статусом `new`
+- [x] запись о вакансии создаётся после фильтров и до анализа со статусом `new`
   и не теряется при падении процесса; `new` не входит в `GetLinksToSkip`;
-  отфильтрованные вакансии получают свои статусы;
+  отфильтрованные вакансии получают свои статусы (по логике потока; тест на
+  исключение — шаг 6);
 - [ ] при отсутствии или пустом `candidate_summary.md` программа останавливается
   на старте с ошибкой; парсинга и отправки нет;
 - [ ] `llm_calls` пишется на каждый логический вызов; `attempt_no`, `call_no`,
@@ -529,11 +542,11 @@ Repair:
   `analysis_failed` и `fail_reason`;
 - [ ] после 3 неудачных попыток ставится `analysis_abandoned`; `GetLinksToSkip`,
   `SetStatus`, отчёт и тесты его учитывают;
-- [ ] `employer_id` заполняется со страницы вакансии, посторонние ссылки
+- [x] `employer_id` заполняется со страницы вакансии, посторонние ссылки
   игнорируются;
-- [ ] поля `experience` / `employment` / `work_format` / `published_at`
-  сохраняются и попадают в Telegram;
-- [ ] `Experience` проходит белый список; мусорный fallback не попадает в промпт
+- [x] поля `experience` / `employment` / `work_format` / `published_at`
+  сохраняются в БД (попадание в Telegram — шаг 8);
+- [x] `Experience` проходит белый список; мусорный fallback не попадает в промпт
   и Telegram; `--parse-samples` печатает `EmployerId` и заполненные поля;
 - [ ] полное описание работает по правилу «≤ 6000 — целиком, иначе секции»;
   пустое описание с секциями не теряет вакансию; `main_text_source` заполнен;

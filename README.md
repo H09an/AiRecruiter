@@ -50,7 +50,7 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj
 Запускайте приложение из корня репозитория: `appsettings.json` и `app.log`
 читаются и пишутся относительно текущей рабочей директории. Состояние вакансий —
 в SQLite-базе `vacancies.db`, она создаётся автоматически
-([Program.cs:191-192](src/AiRecruiter/Program.cs#L191-L192)).
+([Program.cs:192-193](src/AiRecruiter/Program.cs#L192-L193)).
 
 ### Где взять секреты
 
@@ -66,16 +66,16 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj
 
 | Файл | Назначение |
 |---|---|
-| `resume.txt` | читается в `Program`, но в оценке не участвует; если отсутствует, подставляется заглушка — [Program.cs:146](src/AiRecruiter/Program.cs#L146) |
-| `profile.md` | читается в `Program`, но в оценке не участвует; если отсутствует, подставляется заглушка — [Program.cs:147](src/AiRecruiter/Program.cs#L147) |
+| `resume.txt` | читается в `Program`, но в оценке не участвует; если отсутствует, подставляется заглушка — [Program.cs:147](src/AiRecruiter/Program.cs#L147) |
+| `profile.md` | читается в `Program`, но в оценке не участвует; если отсутствует, подставляется заглушка — [Program.cs:148](src/AiRecruiter/Program.cs#L148) |
 | `candidate_summary.md` | сводка навыков; единственный источник для оценки, анализатор читает файл сам — [JobAnalyzer.cs:98](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L98); при отсутствии — пустая сводка |
-| `vacancies.db` | состояние вакансий (SQLite), создаётся автоматически — [Program.cs:191-192](src/AiRecruiter/Program.cs#L191-L192), не коммитится |
+| `vacancies.db` | состояние вакансий (SQLite), создаётся автоматически — [Program.cs:192-193](src/AiRecruiter/Program.cs#L192-L193), не коммитится |
 
 Отсутствие `resume.txt` или `profile.md` на оценку не влияет: их содержимое в
 промпт не попадает. Если отсутствует `candidate_summary.md`, анализатор работает
 с пустой сводкой и оценка теряет смысл. Контакты `Contacts:Fio/Tg/Phone/Email`
 обязательны: без всех четырёх приложение завершает работу
-([Program.cs:138-142](src/AiRecruiter/Program.cs#L138-L142)).
+([Program.cs:139-142](src/AiRecruiter/Program.cs#L139-L142)).
 
 Ctrl+C — остановиться после текущей вакансии, повторный Ctrl+C — немедленный
 выход.
@@ -97,10 +97,10 @@ Ctrl+C — остановиться после текущей вакансии, 
 | Ключ | По умолчанию | Описание |
 |---|---|---|
 | `Search:Query`, `Search:AreaCode` | — | поисковый запрос и регион hh.ru (`113` — Россия, только удалёнка; `4` — Новосибирск, любой формат) |
-| `Contacts:Fio`, `Tg`, `Phone`, `Email` | — | контакты кандидата; все четыре обязательны и проверяются на старте ([Program.cs:112-144](src/AiRecruiter/Program.cs#L112-L144)); в оценке не участвуют ([ADR-0011](docs/adr/0011-contacts-in-cover-letter.md)) |
+| `Contacts:Fio`, `Tg`, `Phone`, `Email` | — | контакты кандидата; все четыре обязательны и проверяются на старте ([Program.cs:113-145](src/AiRecruiter/Program.cs#L113-L145)); в оценке не участвуют ([ADR-0011](docs/adr/0011-contacts-in-cover-letter.md)) |
 | `GigaChat:Model` | `GigaChat` | название модели; код по умолчанию `GigaChat` ([JobAnalyzer.cs:99](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L99)), в [appsettings.example.json](appsettings.example.json) — `GigaChat-2-Pro` |
 | `GigaChat:Temperature` / `TopP` / `MaxTokens` | 0.15 / 0.9 / 800 | параметры модели; `MaxTokens` по умолчанию в коде 800 ([JobAnalyzer.cs:102](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102)), в [appsettings.example.json](appsettings.example.json) — 1200 |
-| `HhParser:Thresholds:*` | 5 вакансий; 80 / 80 / 10 / 10 / 10 % | пороги алерта о смене вёрстки hh.ru: `MinVacanciesForAlert`, `RequirementsPercent`, `DescriptionPercent`, `ResponsibilitiesPercent`, `KeySkillsPercent`, `ConditionsPercent` — [Program.cs:206-211](src/AiRecruiter/Program.cs#L206-L211) |
+| `HhParser:Thresholds:*` | 5 вакансий; 80 / 80 / 10 / 10 / 10 % | пороги алерта о смене вёрстки hh.ru: `MinVacanciesForAlert`, `RequirementsPercent`, `DescriptionPercent`, `ResponsibilitiesPercent`, `KeySkillsPercent`, `ConditionsPercent` — [Program.cs:207-212](src/AiRecruiter/Program.cs#L207-L212) |
 | `Filters:MinSalary` | `0` | минимальная зарплата в рублях; 0 — фильтр выключен; вакансии без зарплаты и в других валютах проходят |
 | `Filters:ExcludeTitleWords` | `[]` | слова в заголовке, при которых вакансия пропускается до GigaChat |
 | `Analyzer:MinScore` | `3` | минимальная оценка для отправки в Telegram |
@@ -196,7 +196,7 @@ dotnet test AiRecruiter.slnx
 - `TitleFilterTests` — поиск стоп-слов в заголовке вакансии.
 - `VacancyRepositoryTests` — SQLite-хранилище вакансий.
 
-Всего 92 теста.
+Всего 106 тестов.
 
 ## Разработка
 

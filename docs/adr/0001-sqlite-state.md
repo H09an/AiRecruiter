@@ -25,9 +25,9 @@
 
 - создание таблицы `vacancies`, удаление `meta`, миграция колонок и перевод
   legacy-записей в `analysis_failed` в одной транзакции —
-  [VacancyRepository.cs:46-106](../../src/AiRecruiter/Storage/VacancyRepository.cs#L46-L106);
+  [VacancyRepository.cs:51-124](../../src/AiRecruiter/Storage/VacancyRepository.cs#L51-L124);
 - инициализация хранилища —
-  [Program.cs:191-192](../../src/AiRecruiter/Program.cs#L191-L192).
+  [Program.cs:192-193](../../src/AiRecruiter/Program.cs#L192-L193).
 
 ## Последствия
 

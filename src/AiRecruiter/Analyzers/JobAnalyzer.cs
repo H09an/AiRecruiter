@@ -372,7 +372,7 @@ public sealed class JobAnalyzer
                 var raw = await CallGigaChatAsync(systemPrompt, userPrompt);
                 lastRaw = raw;
 
-                if (!TryParseAndValidateDto(raw, out var dto, out var reason))
+                if (!TryParseAndValidateDto(raw, out var dto, out var reason) || dto is null)
                 {
                     lastFailureReason = reason;
                     Logger.Log($"[GigaChat] Валидация не прошла (попытка {attempt + 1}/3): {reason} | {vacancy.Link}");
@@ -384,19 +384,19 @@ public sealed class JobAnalyzer
                 }
 
                 // Проверка галлюцинации английского — предупреждение, но не отказ
-                if (HasEnglishHallucination(dto!.Comment ?? string.Empty, GetVacancyText(vacancy)))
+                if (HasEnglishHallucination(dto.Comment ?? string.Empty, GetVacancyText(vacancy)))
                 {
                     Logger.Log($"[GigaChat] Возможная галлюцинация английского: {vacancy.Link}");
                 }
 
-                result = MapDtoToResult(dto!);
+                result = MapDtoToResult(dto);
 
                 // Страховка: переносим из must_have_missing в nice_to_have_missing пункты,
                 // которые в вакансии помечены как желательные (не обязательные)
-                ReclassifyDesirableMissing(result!, vacancy);
+                ReclassifyDesirableMissing(result, vacancy);
 
                 // Проверка общих формулировок в must_have_missing
-                foreach (var missing in result!.MustHaveMissing)
+                foreach (var missing in result.MustHaveMissing)
                 {
                     var lower = missing.ToLowerInvariant();
                     bool hasGenericMarker = lower.Contains("пробел") || lower.Contains("важн") ||
@@ -442,7 +442,7 @@ public sealed class JobAnalyzer
             }
         }
 
-        if (!valid)
+        if (!valid || result is null)
         {
             _jsonFailureCount++;
             SaveFailedResponse(vacancy, lastRaw ?? string.Empty, lastFailureReason ?? "неизвестная причина");
@@ -455,11 +455,11 @@ public sealed class JobAnalyzer
             };
         }
 
-        SanitizeEnglishIfNotRequired(result!, vacancy);
-        SanitizeVacancyConditionHallucinations(result!, vacancy);
-        LogScoringConsistency(result!, vacancy);
+        SanitizeEnglishIfNotRequired(result, vacancy);
+        SanitizeVacancyConditionHallucinations(result, vacancy);
+        LogScoringConsistency(result, vacancy);
 
-        _scoreHistory.Enqueue(result!.Score);
+        _scoreHistory.Enqueue(result.Score);
         if (_scoreHistory.Count > 50)
         {
             _scoreHistory.Dequeue();
@@ -483,8 +483,8 @@ public sealed class JobAnalyzer
             Logger.Log($"[GigaChat] Распределение оценок ({_scoreHistory.Count}): {distribution}; средняя={_scoreHistory.Average():F1}");
         }
 
-        Logger.Log($"[GigaChat] result: final_score={result!.Score} | must_have_met_count={result!.MustHaveMet.Count} | must_have_missing_count={result!.MustHaveMissing.Count} | red_flags_count={result!.RedFlags.Count} | assumptions_count={result!.Assumptions.Count} | {vacancy.Link}");
-        return result!;
+        Logger.Log($"[GigaChat] result: final_score={result.Score} | must_have_met_count={result.MustHaveMet.Count} | must_have_missing_count={result.MustHaveMissing.Count} | red_flags_count={result.RedFlags.Count} | assumptions_count={result.Assumptions.Count} | {vacancy.Link}");
+        return result;
     }
 
     private static void LogScoringConsistency(AnalysisResult result, Vacancy vacancy)
@@ -1011,7 +1011,7 @@ public sealed class JobAnalyzer
         }
         else
         {
-            score = int.Parse(scoreEl.GetString()!.Trim(), CultureInfo.InvariantCulture);
+            score = int.Parse((scoreEl.GetString() ?? string.Empty).Trim(), CultureInfo.InvariantCulture);
         }
 
         // Compute scoring values before object initializer (init-only properties)

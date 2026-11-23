@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Тестировщик — у работодателя нет ссылки</title>
+</head>
+<body>
+<main>
+  <h1 data-qa="vacancy-title">Тестировщик (фикстура: employer без ссылки)</h1>
+
+  <div data-qa="vacancy-company-name"> Вымышленная компания без ссылки </div>
+
+  <a href="/employer/9999999"> Приманка: декой-ссылка вне блока компании </a>
+
+  <div data-qa="vacancy-description">
+    <p>Синтетическая вакансия для проверки случая, когда у элемента компании
+    нет ссылки, а в документе есть только посторонние ссылки на employer.
+    employer_id должен остаться пустым, данные вымышлены.</p>
+  </div>
+</main>
+</body>
+</html>

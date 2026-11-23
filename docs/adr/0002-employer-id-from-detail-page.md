@@ -2,11 +2,12 @@
 
 ## Статус
 
-Принято, не реализовано.
+Принято, реализовано.
 
 ## Дата
 
-не проверено.
+2026-11-18 (коммит
+[5369608](https://github.com/H09an/AiRecruiter/commit/5369608)).
 
 ## Контекст
 
@@ -25,25 +26,27 @@
 Текущее состояние кода:
 
 - колонка `employer_id` существует в схеме —
-  [VacancyRepository.cs:50-70](../../src/AiRecruiter/Storage/VacancyRepository.cs#L50-L70),
-  но во всех местах записи передаётся null —
-  [Program.cs:308](../../src/AiRecruiter/Program.cs#L308),
-  [Program.cs:330](../../src/AiRecruiter/Program.cs#L330),
-  [Program.cs:356](../../src/AiRecruiter/Program.cs#L356),
-  [Program.cs:376](../../src/AiRecruiter/Program.cs#L376),
-  [Program.cs:397](../../src/AiRecruiter/Program.cs#L397);
-- из этого же элемента парсер извлекает только название компании —
-  [HhParser.cs:380](../../src/AiRecruiter/Parsers/HhParser.cs#L380);
-  `employer_id` из него не вычисляется.
+  [VacancyRepository.cs:51-110](../../src/AiRecruiter/Storage/VacancyRepository.cs#L51-L110);
+- `employer_id` извлекается из ссылки элемента
+  `[data-qa='vacancy-company-name']` —
+  [HhParser.cs:391](../../src/AiRecruiter/Parsers/HhParser.cs#L391),
+  извлечение —
+  [HhParser.cs:1576-1607](../../src/AiRecruiter/Parsers/HhParser.cs#L1576-L1607)
+  — и передаётся во все `Upsert` —
+  [Program.cs:309](../../src/AiRecruiter/Program.cs#L309),
+  [Program.cs:335](../../src/AiRecruiter/Program.cs#L335),
+  [Program.cs:360](../../src/AiRecruiter/Program.cs#L360),
+  [Program.cs:386](../../src/AiRecruiter/Program.cs#L386),
+  [Program.cs:435](../../src/AiRecruiter/Program.cs#L435),
+  [Program.cs:410](../../src/AiRecruiter/Program.cs#L410).
 
 ## Последствия
 
 Для кода:
 
-- дедуп по работодателю возможен только после заполнения колонки; до тех пор
-  дедуп работает по ссылке вакансии.
+- дедуп по работодателю возможен после заполнения колонки; до включения дедупа
+  в 3.4 дедуп работает по ссылке вакансии.
 
 Что ещё не сделано:
 
-- извлечение `employer_id` в парсере и передача его через все `Upsert` —
-  запланировано на 3.2a.
+- дедуп по работодателю — этап 3.4.
