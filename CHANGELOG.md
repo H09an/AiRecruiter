@@ -19,6 +19,13 @@
   check»).
 
 ### Изменено
+- За каждой ролью закреплена одна модель: Архитектор —
+  `openrouter/deepseek/deepseek-v4.1-flash-1017`, Кодер —
+  `opencode-go/glm-5.3-flash`, Координатор — `opencode-go/claude-haiku-5.5`;
+  основные и запасные пары убраны.
+- Добавлены скиллы `git-workflow` и `docs-quality`; `dotnet-acceptance`
+  требует `git status` и не разрешает «готово» без проверок; `stage-runbook`
+  ссылается на новые скиллы.
 - Удалены таблица meta и миграция seen_vacancies.txt; Initialize выполняется
   в транзакции; статус seen остаётся только у старых строк.
 - Порог Telegram `Analyzer:MinScore` снижен с 7 до 3 (решение заказчика): в
