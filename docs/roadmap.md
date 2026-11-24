@@ -141,7 +141,12 @@
   `description`, три правила comment, repair system/user,
   `ReclassifyDesirableMissing` по секции, удаление `НАВЫКИ КАНДИДАТА`,
   код-дефолты — сделано;
-- следующий — коммит 6; коммиты 6–9 не начаты.
+- коммит 6 — колонка `attempts`, статус `analysis_abandoned`, статусы-константы
+  `VacancyStatus`, причина ошибки в `fail_reason`, остановка прогона на сетевых
+  ошибках и `401` (ADR-0013), `GetLinksToSkip` по исключению, `SaveFiltered` /
+  `SaveAnalysis` вместо копий `Upsert`, `[ИТОГ]` со списком abandoned —
+  сделано;
+- следующий — коммит 7; коммиты 7–9 не начаты.
 
 **Цель:** подготовить данные и схему для калибровки, убрать технический долг.
 
@@ -265,7 +270,7 @@
 #### 2. Попытки и лимиты
 
 - `attempts` увеличивается при сохранении результата, а не перед анализом.
-  Отдельный метод `SaveAnalysisAttempt` делает `attempts = attempts + 1` в той
+  Метод `SaveAnalysis` делает `attempts = attempts + 1` в той
   же транзакции, что и запись результата. Транзитный статус `analyzing` не
   вводится: при падении процесса между вызовом и записью строка не появится, и
   вакансия не потеряется.
@@ -503,7 +508,7 @@ P0 и P1 — подготовительные правки, выполненны
 | 3 | `chore: удалить meta и миграцию seen_vacancies (этап 3.2a, коммит 3)` | Удалить `meta` и миграцию `seen_vacancies.txt`; `Initialize` в транзакции; тесты на удаление `meta`, идемпотентность и сохранность данных. Детали — ниже | README, architecture, ADR-0001, AGENTS, roadmap, CHANGELOG | `done` |
 | 4 | `feat(parser): employer_id, опыт и поля вакансии (этап 3.2a, коммит 4)` | `EmployerId`, белый список `Experience`, поля `experience`/`employment`/`work_format`/`published_at`, статус `new` до анализа, вывод `EmployerId` в `--parse-samples`, фикстуры и тесты | architecture, CHANGELOG | `done` |
 | 5 | `feat(prompt): сводка один раз, полное описание, comment (этап 3.2a, коммит 5)` | чтение сводки в `Program` с валидатором и остановкой без неё, правило полного описания, колонка `description` и политика её хранения, три правила comment, repair (system/user), удаление `НАВЫКИ КАНДИДАТА`, `resume/profile/contacts` из оценщика (чтение и проверка `Contacts:*` в `Program` остаются), мёртвого `vacancyDescription`, флаг 4000, код-дефолты `MaxTokens` 1200 и модели `GigaChat-2-Pro` | architecture, README, AGENTS, CHANGELOG, ADR-0012, ADR-0003, ADR-0004 | `done` |
-| 6 | `feat(storage): attempts и analysis_abandoned (этап 3.2a, коммит 6)` | `attempts`, `SaveAnalysisAttempt`, `SaveFiltered` / `SaveAnalysis` вместо шести копий `Upsert` (в шаге 4 добавлена шестая копия — статус `new` до анализа), статусы-константы, `analysis_abandoned`, путь исключения, sweep на старте, отчёт | architecture, AGENTS, CHANGELOG | `planned` |
+| 6 | `feat(storage): attempts и analysis_abandoned (этап 3.2a, коммит 6)` | `attempts`, `SaveFiltered` / `SaveAnalysis` вместо копий `Upsert` (шестая копия из шага 4 закрыта), статусы-константы `VacancyStatus`, `analysis_abandoned`, причина исключения в `fail_reason`, остановка прогона на сетевых ошибках и `401` (ADR-0013), `GetLinksToSkip` по исключению, sweep на старте, `[ИТОГ]` со списком abandoned | architecture, AGENTS, README, CHANGELOG, ADR-0013 | `done` |
 | 7 | `feat(storage): журнал llm_calls (этап 3.2a, коммит 7)` | `llm_calls`, `prompt_versions`, `candidate_profiles`, `GigaChatCallResult` (токены, модель, `http_attempts`), сумма токенов за прогон, политика `raw_response`, `main_text_source` | architecture, CHANGELOG, ADR о журнале | `planned` |
 | 8 | `feat(telegram): новый вид и лимит 4096 (этап 3.2a, коммит 8)` | новые строки, пустые поля, экранирование, второе сообщение, поля в retry; `SendAndRecord` вместо двух копий отправки; типизированный `PendingSend` вместо dynamic | architecture, CHANGELOG | `planned` |
 | 9 | `chore: финальная сверка и приёмка 3.2a (этап 3.2a, коммит 9)` | тесты на текущие словоформы заголовков и ложные срабатывания, сверка README/AGENTS/CHANGELOG/architecture, полная приёмка | README, AGENTS, architecture, CHANGELOG | `planned` |
@@ -543,10 +548,10 @@ P0 и P1 — подготовительные правки, выполненны
   неудачных, брошенных и повторных вызовов, не длиннее 64 КБ;
 - [ ] `prompt_versions` вставляется по хэшу с `kind`, старые версии не
   перезаписываются; `candidate_profiles` хранит одну строку на hash;
-- [ ] `attempts` увеличивается при сохранении результата и не сбрасывается
+- [x] `attempts` увеличивается при сохранении результата и не сбрасывается
   `Upsert` / `SetStatus`; транзитного `analyzing` нет; при исключении пишется
   `analysis_failed` и `fail_reason`;
-- [ ] после 3 неудачных попыток ставится `analysis_abandoned`; `GetLinksToSkip`,
+- [x] после 3 неудачных попыток ставится `analysis_abandoned`; `GetLinksToSkip`,
   `SetStatus`, отчёт и тесты его учитывают;
 - [x] `employer_id` заполняется со страницы вакансии, посторонние ссылки
   игнорируются;
@@ -561,7 +566,7 @@ P0 и P1 — подготовительные правки, выполненны
   параметр `vacancyDescription` удалён;
 - [x] `candidate_summary.md` читается один раз; `НАВЫКИ КАНДИДАТА` удалены;
   `resume.txt` / `profile.md` / контакты не участвуют в оценке;
-- [ ] статусы — константы, строковых литералов в коде нет; есть тест на полноту
+- [x] статусы — константы, строковых литералов в коде нет; есть тест на полноту
   списка; `seen` остаётся legacy;
 - [x] код-дефолты `GigaChat:MaxTokens` 1200 и `GigaChat:Model` `GigaChat-2-Pro`;
   README с ними согласован;
@@ -598,9 +603,11 @@ P0 и P1 — подготовительные правки, выполненны
   числе «`candidate_summary.md` обязательна» вместо «необязательна»),
   `AGENTS.md` при изменении правил или журнала решений;
 - новые ADR: [ADR-0012](adr/0012-full-description-prompt.md) — правило полного
-  описания (без `main_text_source`, он остаётся в шаге 7); о журнале
-  `llm_calls` — номер 0013, `main_text_source` — там же; правило кратко
-  дублируется в `docs/architecture.md` и `AGENTS.md`;
+  описания (без `main_text_source`, он остаётся в шаге 7);
+  [ADR-0013](adr/0013-network-errors-stop-run.md) — сетевые ошибки и `401`
+  останавливают прогон (шаг 6); о журнале `llm_calls` — номер 0014,
+  `main_text_source` — там же; правило кратко дублируется в
+  `docs/architecture.md` и `AGENTS.md`;
 - `scripts/check-docs.sh` — без предупреждений.
 
 ### Тесты этапа

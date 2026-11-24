@@ -18,6 +18,13 @@ public sealed class AnalysisResult
     public int Score { get; init; }
     public string Comment { get; set; } = string.Empty;
     public string CoverLetter { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Причина неудачного анализа: причина провала разбора, текст раннего выхода
+    /// или сообщение исключения. В JSON-контракт GigaChat не входит;
+    /// записывается в fail_reason (обрезка до 500 — в SaveAnalysis).
+    /// </summary>
+    public string? FailReason { get; init; }
     public IReadOnlyList<string> MustHaveMet { get; init; } = new List<string>();
     public List<string> MustHaveMissing { get; set; } = new();
     public List<string> NiceToHaveMissing { get; set; } = new();
@@ -69,7 +76,6 @@ public sealed class JobAnalyzer
     private static bool? _supportsJsonFormat;
     private static int _jsonFailureCount;
     private static readonly Queue<int> _scoreHistory = new();
-    private static readonly Random _retryRandom = new();
     private static readonly HttpClient _http;
     private static readonly JsonSerializerOptions DtoJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -171,6 +177,16 @@ public sealed class JobAnalyzer
         _accessToken = null;
     }
 
+    /// <summary>
+    /// Сетевые ошибки, останавливающие прогон: HttpRequestException (включая
+    /// 401 и 429/5xx после внутренних повторов CallGigaChatAsync) и
+    /// TaskCanceledException по таймауту HTTP. OperationCanceledException
+    /// без таймаута и остальные исключения — не остановка прогона
+    /// (ADR-0013).
+    /// </summary>
+    internal static bool IsRunStoppingException(Exception ex) =>
+        ex is HttpRequestException or TaskCanceledException;
+
     private async Task EnsureTokenAsync()
     {
         if (!string.IsNullOrEmpty(_accessToken))
@@ -199,12 +215,14 @@ public sealed class JobAnalyzer
     {
         if (!vacancy.HasDescription && !vacancy.HasStructuredSections)
         {
-            Logger.Log($"[Анализ пропущен] Описание и секции не загружены: {vacancy.Title} | {vacancy.Link}");
+            var reason = "Описание и секции вакансии не загружены — анализ невозможен.";
+            Logger.Log($"[Анализ пропущен] {reason} | {vacancy.Title} | {vacancy.Link}");
             return new AnalysisResult
             {
                 Score = 0,
-                Comment = "Описание и секции вакансии не загружены — анализ невозможен.",
-                CoverLetter = string.Empty
+                Comment = reason,
+                CoverLetter = string.Empty,
+                FailReason = reason,
             };
         }
 
@@ -236,24 +254,18 @@ public sealed class JobAnalyzer
         string? lastRaw = null;
         string? lastFailureReason = null;
 
-        for (int attempt = 0; attempt < 3; attempt++)
+        try
         {
-            try
+            var raw = await CallGigaChatAsync(systemPrompt, userPrompt);
+            lastRaw = raw;
+
+            if (!TryParseAndValidateDto(raw, out var dto, out var reason) || dto is null)
             {
-                var raw = await CallGigaChatAsync(systemPrompt, userPrompt);
-                lastRaw = raw;
-
-                if (!TryParseAndValidateDto(raw, out var dto, out var reason) || dto is null)
-                {
-                    lastFailureReason = reason;
-                    Logger.Log($"[GigaChat] Валидация не прошла (попытка {attempt + 1}/3): {reason} | {vacancy.Link}");
-                    if (attempt < 2)
-                    {
-                        await Task.Delay(700 + _retryRandom.Next(300));
-                    }
-                    continue;
-                }
-
+                lastFailureReason = reason;
+                Logger.Log($"[GigaChat] Валидация не прошла: {reason} | {vacancy.Link}");
+            }
+            else
+            {
                 // Проверка галлюцинации английского — предупреждение, но не отказ
                 if (HasEnglishHallucination(dto.Comment ?? string.Empty, GetVacancyText(vacancy)))
                 {
@@ -279,31 +291,24 @@ public sealed class JobAnalyzer
                 }
 
                 valid = true;
-                break;
             }
-            catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode code && ((int)code == 429 || (int)code >= 500))
-            {
-                lastFailureReason = ex.Message;
-                Logger.Log($"[GigaChat] Ошибка сервера, попытка {attempt + 1}/3: {vacancy.Link}: {ex.Message}");
-                if (attempt < 2)
-                {
-                    await Task.Delay(700 + _retryRandom.Next(300));
-                }
-            }
-            catch (Exception ex)
-            {
-                lastFailureReason = ex.Message;
-                Logger.Log($"[GigaChat] Исключение, попытка {attempt + 1}/3: {vacancy.Link}: {ex.Message}");
-                if (attempt < 2)
-                {
-                    await Task.Delay(700 + _retryRandom.Next(300));
-                }
-            }
+        }
+        catch (Exception ex) when (IsRunStoppingException(ex))
+        {
+            // Сетевая ошибка или 401/429/5xx после внутренних повторов
+            // CallGigaChatAsync — остановка прогона, попытка не списывается.
+            throw;
+        }
+        catch (Exception ex)
+        {
+            lastFailureReason = ex.Message;
+            Logger.Log($"[GigaChat] Исключение анализа: {vacancy.Link}: {ex.Message}");
         }
 
         if (!valid && lastRaw is not null)
         {
-            // 6.4 — один ретрай с repair-промптом: отдаём сырой ответ модели и просим исправить JSON
+            // 6.4 — один ретрай с repair-промптом: отдаём сырой ответ модели и просим исправить JSON.
+            // Вызов вне try: сетевые ошибки repair доходят до Program как остановка прогона.
             var repairedDto = await RepairAndParseAsync(lastRaw);
             if (repairedDto != null)
             {
@@ -322,7 +327,8 @@ public sealed class JobAnalyzer
             {
                 Score = 0,
                 Comment = "Не удалось разобрать ответ GigaChat",
-                CoverLetter = string.Empty
+                CoverLetter = string.Empty,
+                FailReason = lastFailureReason ?? "неизвестная причина",
             };
         }
 
@@ -854,6 +860,11 @@ public sealed class JobAnalyzer
                 return dto;
             }
             return null;
+        }
+        catch (Exception ex) when (IsRunStoppingException(ex))
+        {
+            // Сетевые ошибки repair — остановка прогона (ADR-0013).
+            throw;
         }
         catch
         {

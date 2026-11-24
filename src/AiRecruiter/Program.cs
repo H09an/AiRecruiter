@@ -289,6 +289,8 @@ public sealed class Program
             var scoreCounts = new int[11];
             int sentCount = 0;
             int belowThresholdCount = 0;
+            var abandonedVacancies = new List<(string Link, string? FailReason)>();
+            bool runStopped = false;
 
             foreach (var vacancy in vacancies)
             {
@@ -310,24 +312,10 @@ public sealed class Program
                 if (excludedWord is not null)
                 {
                     Logger.Log($"[Пропущено] Стоп-слово '{excludedWord}': {vacancy.Title} | {vacancy.Link}");
-                    repository.Upsert(new VacancyRecord(
-                        Link: vacancy.Link,
-                        EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
-                        Title: vacancy.Title,
-                        Company: vacancy.Company,
-                        Salary: vacancy.Salary,
-                        Score: null,
-                        Status: "filtered_stopword",
-                        FirstSeen: nowIso,
-                        AnalyzedAt: null,
-                        FailReason: null,
-                        Comment: null,
-                        CoverLetter: null,
-                        TechStack: vacancy.TechStack,
-                        Experience: ToDbValue(vacancy.Experience),
-                        Employment: ToDbValue(vacancy.Employment),
-                        WorkFormat: ToDbValue(vacancy.WorkFormat),
-                        PublishedAt: ToDbValue(vacancy.PublishedAt)));
+                    repository.SaveFiltered(BuildFilteredRecord(
+                        vacancy,
+                        VacancyStatus.FilteredStopword,
+                        nowIso));
                     skipLinks.Add(vacancy.Link);
                     continue;
                 }
@@ -336,49 +324,18 @@ public sealed class Program
                 if (salaryLowerBound is int lowerBound && SalaryFilter.ShouldSkip(vacancy.Salary, minSalary))
                 {
                     Logger.Log($"[Пропущено] Зарплата ниже порога ({lowerBound} < {minSalary}): {vacancy.Title} | {vacancy.Link}");
-                    repository.Upsert(new VacancyRecord(
-                        Link: vacancy.Link,
-                        EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
-                        Title: vacancy.Title,
-                        Company: vacancy.Company,
-                        Salary: vacancy.Salary,
-                        Score: null,
-                        Status: "filtered_salary",
-                        FirstSeen: nowIso,
-                        AnalyzedAt: null,
-                        FailReason: null,
-                        Comment: null,
-                        CoverLetter: null,
-                        TechStack: vacancy.TechStack,
-                        Experience: ToDbValue(vacancy.Experience),
-                        Employment: ToDbValue(vacancy.Employment),
-                        WorkFormat: ToDbValue(vacancy.WorkFormat),
-                        PublishedAt: ToDbValue(vacancy.PublishedAt)));
+                    repository.SaveFiltered(BuildFilteredRecord(
+                        vacancy,
+                        VacancyStatus.FilteredSalary,
+                        nowIso));
                     skipLinks.Add(vacancy.Link);
                     salaryFiltered++;
                     continue;
                 }
 
-                // Строка создаётся до анализа со статусом new; при исключении она
-                // останется new без fail_reason (обработка — шаг 6).
-                repository.Upsert(new VacancyRecord(
-                    Link: vacancy.Link,
-                    EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
-                    Title: vacancy.Title,
-                    Company: vacancy.Company,
-                    Salary: vacancy.Salary,
-                    Score: null,
-                    Status: "new",
-                    FirstSeen: nowIso,
-                    AnalyzedAt: null,
-                    FailReason: null,
-                    Comment: null,
-                    CoverLetter: null,
-                    TechStack: vacancy.TechStack,
-                    Experience: ToDbValue(vacancy.Experience),
-                    Employment: ToDbValue(vacancy.Employment),
-                    WorkFormat: ToDbValue(vacancy.WorkFormat),
-                    PublishedAt: ToDbValue(vacancy.PublishedAt)));
+                // Строка создаётся до анализа со статусом new; при сетевой ошибке
+                // остаётся new без списания попытки (ADR-0013).
+                repository.SaveFiltered(BuildFilteredRecord(vacancy, VacancyStatus.New, nowIso));
 
                 try
                 {
@@ -387,50 +344,34 @@ public sealed class Program
                     if (result.Score == 0)
                     {
                         Logger.Log($"[Пропущено] {vacancy.Title} | {vacancy.Link} | {result.Comment}");
-                        repository.Upsert(new VacancyRecord(
-                            Link: vacancy.Link,
-                            EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
-                            Title: vacancy.Title,
-                            Company: vacancy.Company,
-                            Salary: vacancy.Salary,
-                            Score: null,
-                            Status: "analysis_failed",
-                            FirstSeen: nowIso,
-                            AnalyzedAt: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-                            FailReason: result.Comment,
-                            Comment: null,
-                            CoverLetter: null,
-                            TechStack: vacancy.TechStack,
-                            Experience: ToDbValue(vacancy.Experience),
-                            Employment: ToDbValue(vacancy.Employment),
-                            WorkFormat: ToDbValue(vacancy.WorkFormat),
-                            PublishedAt: ToDbValue(vacancy.PublishedAt),
-                            Description: vacancy.HasDescription ? vacancy.Description : null));
+                        var failReason = string.IsNullOrEmpty(result.FailReason)
+                            ? result.Comment
+                            : result.FailReason;
+                        var (finalStatus, _) = repository.SaveAnalysis(BuildAnalysisRecord(
+                            vacancy,
+                            VacancyStatus.AnalysisFailed,
+                            nowIso,
+                            score: null,
+                            failReason: failReason,
+                            comment: null,
+                            coverLetter: null,
+                            description: vacancy.HasDescription ? vacancy.Description : null));
+                        RecordAbandoned(finalStatus, vacancy.Link, failReason, abandonedVacancies);
                         skipLinks.Add(vacancy.Link);
                     }
                     else if (result.Score < minScore)
                     {
                         Logger.Log($"[Оценка: {result.Score}/10] {vacancy} - {result.Comment}");
                         Logger.Log($"[Оценка ниже порога] score={result.Score} < {minScore}: {vacancy.Title} | {vacancy.Link}");
-                        repository.Upsert(new VacancyRecord(
-                            Link: vacancy.Link,
-                            EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
-                            Title: vacancy.Title,
-                            Company: vacancy.Company,
-                            Salary: vacancy.Salary,
-                            Score: result.Score,
-                            Status: "analyzed_low",
-                            FirstSeen: nowIso,
-                            AnalyzedAt: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-                            FailReason: null,
-                            Comment: result.Comment,
-                            CoverLetter: result.CoverLetter,
-                            TechStack: vacancy.TechStack,
-                            Experience: ToDbValue(vacancy.Experience),
-                            Employment: ToDbValue(vacancy.Employment),
-                            WorkFormat: ToDbValue(vacancy.WorkFormat),
-                            PublishedAt: ToDbValue(vacancy.PublishedAt),
-                            Description: null));
+                        repository.SaveAnalysis(BuildAnalysisRecord(
+                            vacancy,
+                            VacancyStatus.AnalyzedLow,
+                            nowIso,
+                            result.Score,
+                            failReason: null,
+                            comment: result.Comment,
+                            coverLetter: result.CoverLetter,
+                            description: null));
                         skipLinks.Add(vacancy.Link);
                         scoreCounts[result.Score]++;
                         belowThresholdCount++;
@@ -438,31 +379,21 @@ public sealed class Program
                     else
                     {
                         Logger.Log($"[Оценка: {result.Score}/10] {vacancy} - {result.Comment}");
-                        repository.Upsert(new VacancyRecord(
-                            Link: vacancy.Link,
-                            EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
-                            Title: vacancy.Title,
-                            Company: vacancy.Company,
-                            Salary: vacancy.Salary,
-                            Score: result.Score,
-                            Status: "analyzed_ok",
-                            FirstSeen: nowIso,
-                            AnalyzedAt: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-                            FailReason: null,
-                            Comment: result.Comment,
-                            CoverLetter: result.CoverLetter,
-                            TechStack: vacancy.TechStack,
-                            Experience: ToDbValue(vacancy.Experience),
-                            Employment: ToDbValue(vacancy.Employment),
-                            WorkFormat: ToDbValue(vacancy.WorkFormat),
-                            PublishedAt: ToDbValue(vacancy.PublishedAt),
-                            Description: null));
+                        repository.SaveAnalysis(BuildAnalysisRecord(
+                            vacancy,
+                            VacancyStatus.AnalyzedOk,
+                            nowIso,
+                            result.Score,
+                            failReason: null,
+                            comment: result.Comment,
+                            coverLetter: result.CoverLetter,
+                            description: null));
 
                         // Политика отправки: score >= minScore — в Telegram;
                         // метка 🔥 при score >= 7, иначе 💭.
                         var priorityLabel = result.Score >= 7 ? "🔥 откликаться" : "💭 на подумать";
                         bool sent = await notifier.SendVacancyAsync(vacancy, result, priorityLabel);
-                        repository.SetStatus(vacancy.Link, sent ? "sent" : "send_failed", result.Score);
+                        repository.SetStatus(vacancy.Link, sent ? VacancyStatus.Sent : VacancyStatus.SendFailed, result.Score);
                         if (sent)
                         {
                             sentCount++;
@@ -472,19 +403,58 @@ public sealed class Program
                         scoreCounts[result.Score]++;
                     }
                 }
+                catch (Exception ex) when (JobAnalyzer.IsRunStoppingException(ex))
+                {
+                    // Сетевая ошибка или 401 после внутренних повторов: прогон
+                    // останавливается, строка остаётся new, попытка не списывается
+                    // (ADR-0013). Итог и завершение Program выполняются как обычно.
+                    runStopped = true;
+                    Logger.Log($"[Остановка] Сетевая ошибка GigaChat, прогон остановлен: {ex.Message} | {vacancy.Title} | {vacancy.Link}");
+                    break;
+                }
                 catch (OperationCanceledException)
                 {
+                    // Отмена процесса (Ctrl+C): пробрасываем, попытка не списывается.
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    Logger.Log($"[Ошибка анализа] {vacancy.Title} | {vacancy.Link}: {ex}");
+                    // Остальные исключения анализа: analysis_failed с причиной,
+                    // attempts + 1 (лимит попыток работает, ADR-0013).
+                    Logger.Log($"[Ошибка анализа] {vacancy.Title} | {vacancy.Link}: {ex.Message}");
+                    var failReason = ex.Message;
+                    var (finalStatus, _) = repository.SaveAnalysis(BuildAnalysisRecord(
+                        vacancy,
+                        VacancyStatus.AnalysisFailed,
+                        nowIso,
+                        score: null,
+                        failReason: failReason,
+                        comment: null,
+                        coverLetter: null,
+                        description: vacancy.HasDescription ? vacancy.Description : null));
+                    RecordAbandoned(finalStatus, vacancy.Link, failReason, abandonedVacancies);
+                    skipLinks.Add(vacancy.Link);
                 }
+            }
+
+            if (runStopped)
+            {
+                Logger.Log("[Остановка] Прогон остановлен на сетевой ошибке; оставшиеся вакансии не обработаны. Строки остались new, попытки не списаны.");
             }
 
             if (salaryFiltered > 0)
             {
                 Logger.Log($"[ИТОГ] Отфильтровано по зарплате: {salaryFiltered}");
+            }
+
+            var abandonedLines = BuildAbandonedLines(abandonedVacancies);
+            if (abandonedLines.Count > 0)
+            {
+                Logger.Log($"[ИТОГ] Брошено после 3 неудач (analysis_abandoned) за прогон: {abandonedLines.Count}");
+                foreach (var line in abandonedLines)
+                {
+                    Logger.Log(line);
+                }
             }
 
             var distribution = string.Join(" ", Enumerable.Range(1, 10).Select(i => $"{i}:{scoreCounts[i]}"));
@@ -514,6 +484,91 @@ public sealed class Program
         string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>
+    /// Запись до анализа или отфильтрованная (new, filtered_stopword,
+    /// filtered_salary) для SaveFiltered: результат анализа пуст, description
+    /// не пишется, attempts сохраняет хранилище.
+    /// </summary>
+    private static VacancyRecord BuildFilteredRecord(
+        Vacancy vacancy,
+        string status,
+        string nowIso) => new(
+            Link: vacancy.Link,
+            EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
+            Title: vacancy.Title,
+            Company: vacancy.Company,
+            Salary: vacancy.Salary,
+            Score: null,
+            Status: status,
+            FirstSeen: nowIso,
+            AnalyzedAt: null,
+            FailReason: null,
+            Comment: null,
+            CoverLetter: null,
+            TechStack: vacancy.TechStack,
+            Experience: ToDbValue(vacancy.Experience),
+            Employment: ToDbValue(vacancy.Employment),
+            WorkFormat: ToDbValue(vacancy.WorkFormat),
+            PublishedAt: ToDbValue(vacancy.PublishedAt));
+
+    /// <summary>
+    /// Запись результата анализа (analysis_failed, analyzed_low, analyzed_ok)
+    /// для SaveAnalysis: attempts увеличивает хранилище в одной транзакции.
+    /// </summary>
+    private static VacancyRecord BuildAnalysisRecord(
+        Vacancy vacancy,
+        string status,
+        string nowIso,
+        int? score,
+        string? failReason,
+        string? comment,
+        string? coverLetter,
+        string? description) => new(
+            Link: vacancy.Link,
+            EmployerId: string.IsNullOrWhiteSpace(vacancy.EmployerId) ? null : vacancy.EmployerId,
+            Title: vacancy.Title,
+            Company: vacancy.Company,
+            Salary: vacancy.Salary,
+            Score: score,
+            Status: status,
+            FirstSeen: nowIso,
+            AnalyzedAt: DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+            FailReason: failReason,
+            Comment: comment,
+            CoverLetter: coverLetter,
+            TechStack: vacancy.TechStack,
+            Experience: ToDbValue(vacancy.Experience),
+            Employment: ToDbValue(vacancy.Employment),
+            WorkFormat: ToDbValue(vacancy.WorkFormat),
+            PublishedAt: ToDbValue(vacancy.PublishedAt),
+            Description: description);
+
+    /// <summary>
+    /// Запоминает вакансию, переведённую в analysis_abandoned текущим прогоном,
+    /// для строк [Abandoned] в [ИТОГ]. Sweep-переходы на старте сюда не входят.
+    /// </summary>
+    private static void RecordAbandoned(
+        string finalStatus,
+        string link,
+        string? failReason,
+        List<(string Link, string? FailReason)> abandoned)
+    {
+        if (finalStatus == VacancyStatus.AnalysisAbandoned)
+        {
+            abandoned.Add((link, failReason));
+        }
+    }
+
+    /// <summary>
+    /// Строки [Abandoned] для итогового отчёта: чистая функция входных данных,
+    /// покрытие тестом. Формат: `[Abandoned] ссылка | fail_reason`.
+    /// </summary>
+    internal static IReadOnlyList<string> BuildAbandonedLines(
+        IReadOnlyCollection<(string Link, string? FailReason)> abandoned) =>
+        abandoned
+            .Select(a => $"[Abandoned] {a.Link} | {(string.IsNullOrEmpty(a.FailReason) ? "причина не указана" : a.FailReason)}")
+            .ToList();
+
+    /// <summary>
     /// Повторная отправка в Telegram из сохранённого результата анализа
     /// (статусы send_failed/analyzed_ok) — без вызова GigaChat.
     /// </summary>
@@ -526,7 +581,7 @@ public sealed class Program
         {
             if (record.Score < minScore)
             {
-                repository.SetStatus(record.Link, "analyzed_low", record.Score);
+                repository.SetStatus(record.Link, VacancyStatus.AnalyzedLow, record.Score);
                 Logger.Log($"[Повтор] Ниже нового порога: score={record.Score} < {minScore} | {record.Title} | {record.Link}");
                 continue;
             }
@@ -549,7 +604,7 @@ public sealed class Program
 
             var label = result.Score >= 7 ? "🔥 откликаться" : "💭 на подумать";
             bool sent = await notifier.SendVacancyAsync(vacancy, result, label);
-            repository.SetStatus(record.Link, sent ? "sent" : "send_failed", result.Score);
+            repository.SetStatus(record.Link, sent ? VacancyStatus.Sent : VacancyStatus.SendFailed, result.Score);
 
             if (sent)
             {

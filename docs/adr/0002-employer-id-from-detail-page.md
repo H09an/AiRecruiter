@@ -26,19 +26,17 @@
 Текущее состояние кода:
 
 - колонка `employer_id` существует в схеме —
-  [VacancyRepository.cs:52-78](../../src/AiRecruiter/Storage/VacancyRepository.cs#L52-L78);
+  [VacancyRepository.cs:63-84](../../src/AiRecruiter/Storage/VacancyRepository.cs#L63-L84);
 - `employer_id` извлекается из ссылки элемента
   `[data-qa='vacancy-company-name']` —
   [HhParser.cs:391](../../src/AiRecruiter/Parsers/HhParser.cs#L391),
   извлечение —
-  [HhParser.cs:1576-1603](../../src/AiRecruiter/Parsers/HhParser.cs#L1576-L1603)
-  — и передаётся во все `Upsert` —
-  [Program.cs:315](../../src/AiRecruiter/Program.cs#L315),
-  [Program.cs:341](../../src/AiRecruiter/Program.cs#L341),
-  [Program.cs:366](../../src/AiRecruiter/Program.cs#L366),
-  [Program.cs:392](../../src/AiRecruiter/Program.cs#L392),
-  [Program.cs:417](../../src/AiRecruiter/Program.cs#L417),
-  [Program.cs:443](../../src/AiRecruiter/Program.cs#L443).
+  [HhParser.cs:1576-1603](../../src/AiRecruiter/Parsers/HhParser.cs#L1576-L1603);
+- `Program` передаёт `EmployerId` в записи для `SaveFiltered` и `SaveAnalysis` —
+  [Program.cs:496](../../src/AiRecruiter/Program.cs#L496)
+  (`BuildFilteredRecord`) и
+  [Program.cs:527](../../src/AiRecruiter/Program.cs#L527)
+  (`BuildAnalysisRecord`); `Upsert` в `Program` не вызывается.
 
 ## Последствия
 

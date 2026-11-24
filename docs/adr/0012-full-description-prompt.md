@@ -37,9 +37,9 @@
 Текущее состояние кода:
 
 - ранний выход без сети —
-  [JobAnalyzer.cs:198-207](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L198-L207);
+  [JobAnalyzer.cs:214-227](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L214-L227);
 - сборка блоков —
-  [JobAnalyzer.cs:462-489](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L462-L489).
+  [JobAnalyzer.cs:476-495](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L476-L495).
 
 ## Последствия
 

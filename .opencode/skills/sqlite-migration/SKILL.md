@@ -32,7 +32,7 @@ cp vacancies.db vacancies.db.bak
   правку существующего теста.
 - Удаление `meta` — `DROP TABLE IF EXISTS meta`, убрать `CREATE`.
 - `Upsert` и `SetStatus` не трогают `attempts`; счётчик меняет только
-  `SaveAnalysisAttempt` в одной транзакции с результатом.
+  `SaveAnalysis` в одной транзакции с результатом.
 - `new` не входит в `GetLinksToSkip`; терминальные статусы — входят.
 - `description` хранится только у `analysis_failed` / `analysis_abandoned`; при
   успехе очищается.

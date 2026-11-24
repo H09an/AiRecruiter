@@ -25,7 +25,7 @@
 Текущее состояние кода:
 
 - код-дефолт `MaxTokens = 1200` —
-  [JobAnalyzer.cs:96](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L96);
+  [JobAnalyzer.cs:102](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102);
   конфигурация переопределяет значение;
 - `appsettings.example.json` —
   [appsettings.example.json](../../appsettings.example.json);

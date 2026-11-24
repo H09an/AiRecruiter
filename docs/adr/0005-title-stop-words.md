@@ -29,9 +29,9 @@
 Механизм: поиск каждого слова по границам слова, без учёта регистра —
 [TitleFilter.cs:11-33](../../src/AiRecruiter/Filters/TitleFilter.cs#L11-L33);
 место фильтра в потоке —
-[Program.cs:309](../../src/AiRecruiter/Program.cs#L309), статус
+[Program.cs:311](../../src/AiRecruiter/Program.cs#L311), статус
 `filtered_stopword` —
-[Program.cs:313-330](../../src/AiRecruiter/Program.cs#L313-L330).
+[Program.cs:315-319](../../src/AiRecruiter/Program.cs#L315-L319).
 
 Слова `стажер`, `стажёр`, `интерн`, `intern` покрывают текущие формы стажёрских
 и интернских названий благодаря поиску по границам слова. Падежные и женские

@@ -182,7 +182,7 @@
 - Решение этапа 3.2a (в коде пока не реализовано): каждый логический вызов
   GigaChat сохраняется в журнал `llm_calls`. Почему: нужен разбор оценок и
   повторный прогон без обращения к hh.ru. Промпт содержит сводку кандидата,
-  поэтому его содержимое не выводится в логи и отчёты. (план, шаг 7).
+  поэтому его содержимое не выводится в логи и отчёты. (план, шаг 7, ADR-0014).
 
 ### Данные и журнал (этап 3.2a)
 
@@ -193,7 +193,7 @@
   лимит. `http_attempts` — число HTTP-запросов внутри логического вызова.
   `repair_used` и `http_calls` отдельными колонками не хранятся: repair виден по
   `purpose`, сумма HTTP — по `http_attempts`. `raw_response` ограничен 64 КБ.
-  (план, шаг 7).
+  (план, шаг 7, ADR-0014).
 - Repair: инструкция в system-сообщении, предыдущий ответ модели — в user;
   мёртвый параметр `vacancyDescription` удаляется. (план, шаг 5).
 - `prompt_versions` хранит system-промпт по `sha256-<16 hex>`,
@@ -204,16 +204,21 @@
   `Upsert` и `SetStatus` его не трогают. После 3 неудач ставится
   `analysis_abandoned`; на старте прогона `analysis_failed` с `attempts >= 3`
   переводится в `analysis_abandoned`. Почему: иначе повторная отправка и фильтры
-  сбрасывают счётчик. (план, шаг 6).
+  сбрасывают счётчик. Сделано в 3.2a (шаг 6).
 - `analysis_abandoned` ставится по одному условию: `attempts >= 3` и анализ так
   и не удался. Отсутствие score, комментария и письма, отсутствие сообщения в
-  Telegram и прекращение повторов — следствия, а не отдельные условия. (план,
-  шаг 6).
+  Telegram и прекращение повторов — следствия, а не отдельные условия. Сделано
+  в 3.2a (шаг 6).
 - Возврат `analysis_abandoned`: исправить причину, затем
   `UPDATE vacancies SET attempts = 0, status = 'analysis_failed', fail_reason = NULL WHERE link = '...';`.
   Следующий прогон возьмёт вакансию в анализ, только если она снова появится в
   выдаче; если нет — нужен `--retry-failed` (3.4) или ручной запуск по ссылке.
-  (план, шаг 6).
+  Документировано в README и roadmap в 3.2a (шаг 6).
+- Сетевые ошибки и `401` останавливают прогон: строки остаются `new`,
+  `attempts` не меняются, `[ИТОГ]` и завершение сохраняются; остальные
+  исключения анализа — `analysis_failed` с причиной в `fail_reason` (не длиннее
+  500 символов) и `attempts + 1`. Почему: [ADR-0013](docs/adr/0013-network-errors-stop-run.md).
+  Сделано в 3.2a (шаг 6).
 - Полное описание: `Description.Length <= 6000` — один блок `ПОЛНОЕ ОПИСАНИЕ`;
   длиннее — `ТРЕБОВАНИЯ` и непустые секции; пустой `Description` при непустых
   `Requirements`/`Responsibilities`/`Conditions` — сборка из секций; без
@@ -224,19 +229,20 @@
   `only_requirements.html` fallback попадает в промпт и Telegram. (план, шаг 4).
 - Статусы — константы, не строковые литералы; `seen` остаётся legacy для старых
   строк. Почему: опечатка в строке ломает фильтр, отчёт и `GetLinksToSkip`.
-  (план, шаг 6).
+  Сделано в 3.2a (шаг 6).
 - `main_text_source` — в `llm_calls` (`description` / `requirements`), только
   для `purpose = analysis`. (план, шаг 7).
 - `GetLinksToSkip` строится по исключению: не пропускаются `new` и
   `analysis_failed`, всё остальное — терминальные статусы. Почему: новый статус
   не забудут добавить в белый список и вакансия не уйдёт повторно в Telegram.
-  (план, шаг 6; сейчас — белый список в `VacancyRepository`).
+  Реализовано в 3.2a (шаг 6): `WHERE status NOT IN (@New, @AnalysisFailed)` —
+  [VacancyRepository.cs:353-366](src/AiRecruiter/Storage/VacancyRepository.cs#L353-L366).
 - `description` в `vacancies` и `raw_response` в `llm_calls` сохраняются только
   для `analysis_failed` / `analysis_abandoned` и для вызовов, которым
   понадобился повтор. (план, шаги 5 и 7).
 - Telegram: без обрезки текста; длину комментария задаёт правило в промпте.
   Существующая проверка `comment` 10–800 символов —
-  [JobAnalyzer.cs:715-730](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L715-L730) —
+  [JobAnalyzer.cs:722-737](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L722-L737) —
   остаётся; превышение 4096 символов — отправка вторым сообщением (план, шаг 8;
   в коде пока нет).
 - `resume.txt` и `profile.md` в анализе и письме не используются: единственный
@@ -263,7 +269,7 @@
   пункту/секции, где он найден, а не по словам «обязательно/желательно» во всём
   описании. Реализовано в 3.2a (шаг 5): единицы текста — пункты с ближайшим
   заголовком секции; маркеры ищутся только в единице, где найден навык —
-  [JobAnalyzer.cs:1061-1117](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L1061-L1117).
+  [JobAnalyzer.cs:1072-1129](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L1072-L1129).
 - Порог Telegram `Analyzer:MinScore = 3`. Оценки ниже порога пишутся в лог и в
   БД со статусом `analyzed_low`, в Telegram не отправляются. Метка «🔥
   откликаться» при score ≥ 7, «💭 на подумать» при 3–6. Почему: заказчик снизил
@@ -272,8 +278,8 @@
 - Shadow mode на старте: анализируем всё, в Telegram по порогу. Почему: не
   получить пустой Telegram из-за слишком жёстких фильтров.
 - Код-дефолты GigaChat: `MaxTokens = 1200`, модель `GigaChat-2-Pro` —
-  [JobAnalyzer.cs:93](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L93),
-  [JobAnalyzer.cs:96](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L96); README и
+  [JobAnalyzer.cs:99](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L99),
+  [JobAnalyzer.cs:102](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102); README и
   [appsettings.example.json](appsettings.example.json) приведены к ним
   (3.2a, шаг 5).
 - После 3.6 — отдельный этап: фильтры выносятся в отдельный файл `filters.yaml`,

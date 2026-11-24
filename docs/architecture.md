@@ -50,47 +50,58 @@
 17. Повторная отправка из сохранённого результата — до цикла вакансий —
     [Program.cs:286](../src/AiRecruiter/Program.cs#L286).
 18. Цикл вакансий —
-    [Program.cs:293-483](../src/AiRecruiter/Program.cs#L293-L483):
+    [Program.cs:295-438](../src/AiRecruiter/Program.cs#L295-L438):
     1. пропуск уже виденных —
-       [Program.cs:301](../src/AiRecruiter/Program.cs#L301);
+       [Program.cs:303](../src/AiRecruiter/Program.cs#L303);
     2. фильтр по стоп-словам в заголовке —
-       [Program.cs:309](../src/AiRecruiter/Program.cs#L309);
+       [Program.cs:311](../src/AiRecruiter/Program.cs#L311);
     3. фильтр по зарплате —
-       [Program.cs:335-360](../src/AiRecruiter/Program.cs#L335-L360);
+       [Program.cs:323-334](../src/AiRecruiter/Program.cs#L323-L334);
     4. запись со статусом `new` до анализа —
-       [Program.cs:364-381](../src/AiRecruiter/Program.cs#L364-L381);
-    5. анализ GigaChat — [Program.cs:385](../src/AiRecruiter/Program.cs#L385);
+       [Program.cs:338](../src/AiRecruiter/Program.cs#L338);
+    5. анализ GigaChat — [Program.cs:342](../src/AiRecruiter/Program.cs#L342);
     6. без описания → `analysis_failed` —
-       [Program.cs:390-410](../src/AiRecruiter/Program.cs#L390-L410); полное
+       [Program.cs:344-361](../src/AiRecruiter/Program.cs#L344-L361); полное
        описание сохраняется в колонку `description` —
-       [Program.cs:408](../src/AiRecruiter/Program.cs#L408);
+       [Program.cs:358](../src/AiRecruiter/Program.cs#L358);
     7. оценка ниже порога → `analyzed_low`, в Telegram не отправляется,
        `description` очищается —
-       [Program.cs:411-437](../src/AiRecruiter/Program.cs#L411-L437);
+       [Program.cs:362-378](../src/AiRecruiter/Program.cs#L362-L378);
     8. `analyzed_ok` → отправка в Telegram → `sent` / `send_failed`,
        `description` очищается —
-       [Program.cs:438-473](../src/AiRecruiter/Program.cs#L438-L473); метка
-       🔥/💭 — [Program.cs:463](../src/AiRecruiter/Program.cs#L463),
-       запись статуса — [Program.cs:465](../src/AiRecruiter/Program.cs#L465).
-19. Итог: отфильтровано по зарплате, распределение оценок, неудачи JSON —
-    [Program.cs:485-491](../src/AiRecruiter/Program.cs#L485-L491).
-20. Прогон ждёт Enter — [Program.cs:499](../src/AiRecruiter/Program.cs#L499).
+       [Program.cs:380-405](../src/AiRecruiter/Program.cs#L380-L405); метка
+       🔥/💭 — [Program.cs:394](../src/AiRecruiter/Program.cs#L394),
+       запись статуса — [Program.cs:396](../src/AiRecruiter/Program.cs#L396);
+    9. исключения: сетевые ошибки и `401` останавливают прогон
+       ([ADR-0013](adr/0013-network-errors-stop-run.md)), строка остаётся
+       `new`, попытка не списывается —
+       [Program.cs:406-414](../src/AiRecruiter/Program.cs#L406-L414); Ctrl+C —
+       [Program.cs:415-419](../src/AiRecruiter/Program.cs#L415-L419); остальные
+       исключения → `analysis_failed` с причиной в `fail_reason`,
+       `attempts + 1` —
+       [Program.cs:420-437](../src/AiRecruiter/Program.cs#L420-L437).
+19. Итог: остановка прогона, отфильтровано по зарплате, брошенные
+    `analysis_abandoned` за прогон, распределение оценок, неудачи JSON —
+    [Program.cs:440-467](../src/AiRecruiter/Program.cs#L440-L467); строки
+    `[Abandoned]` — чистая функция [Program.cs:561-566](../src/AiRecruiter/Program.cs#L561-L566).
+20. Прогон ждёт Enter — [Program.cs:470](../src/AiRecruiter/Program.cs#L470).
 
 Правило блоков user-сообщения — [ADR-0012](adr/0012-full-description-prompt.md):
 `Description` ≤ 6000 — один блок `ПОЛНОЕ ОПИСАНИЕ`; > 6000 при непустых секциях
 — блоки секций; > 6000 без секций — первые 6000 символов; пустое описание при
 непустых секциях — секции; нет ни описания, ни секций — GigaChat не вызывается
-— [JobAnalyzer.cs:198-207](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L198-L207).
+— [JobAnalyzer.cs:214-227](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L214-L227).
 
 ## Модули
 
 | Файл | Вход | Выход | Что пишет в БД |
 |---|---|---|---|
-| [Program.cs](../src/AiRecruiter/Program.cs) | конфигурация, секреты, контакты, входные файлы | запуск всех этапов, лог, итоговый отчёт | статусы всех вакансий: `new`, `filtered_stopword`, `filtered_salary`, `analysis_failed`, `analyzed_low`, `analyzed_ok`, `sent`, `send_failed` |
+| [Program.cs](../src/AiRecruiter/Program.cs) | конфигурация, секреты, контакты, входные файлы | запуск всех этапов, лог, итоговый отчёт | статусы всех вакансий через `SaveFiltered` / `SaveAnalysis`: `new`, `filtered_stopword`, `filtered_salary`, `analysis_failed`, `analysis_abandoned`, `analyzed_low`, `analyzed_ok`, `sent`, `send_failed` |
 | [HhParser.cs](../src/AiRecruiter/Parsers/HhParser.cs) | поисковый запрос, area, workFormat, skipLinks | список `Vacancy` + сводка прогона | нет |
-| [JobAnalyzer.cs](../src/AiRecruiter/Analyzers/JobAnalyzer.cs) | вакансия, строка сводки кандидата, конфигурация GigaChat | `AnalysisResult` (score, comment, cover_letter) | нет |
+| [JobAnalyzer.cs](../src/AiRecruiter/Analyzers/JobAnalyzer.cs) | вакансия, строка сводки кандидата, конфигурация GigaChat | `AnalysisResult` (score, comment, cover_letter, fail_reason) | нет |
 | [TelegramNotifier.cs](../src/AiRecruiter/Notifiers/TelegramNotifier.cs) | вакансия, результат анализа, метка | сообщения Telegram | нет |
-| [VacancyRepository.cs](../src/AiRecruiter/Storage/VacancyRepository.cs) | `VacancyRecord`, статусы | ссылки для пропуска, записи для повторной отправки, распределение оценок | запись и обновление строк `vacancies`, миграция колонок |
+| [VacancyRepository.cs](../src/AiRecruiter/Storage/VacancyRepository.cs) | `VacancyRecord`, статусы | ссылки для пропуска, записи для повторной отправки, распределение оценок, итоговый статус и попытки `SaveAnalysis` | запись и обновление строк `vacancies`, миграция колонок, sweep `analysis_abandoned` |
+| [VacancyStatus.cs](../src/AiRecruiter/Storage/VacancyStatus.cs) | — | константы статусов и полный список `All` | нет |
 | [TitleFilter.cs](../src/AiRecruiter/Filters/TitleFilter.cs) | заголовок вакансии, стоп-слова | найденное стоп-слово или null | нет |
 | [SalaryFilter.cs](../src/AiRecruiter/Filters/SalaryFilter.cs) | строка зарплаты, порог `Filters:MinSalary` | решение «пропустить» + нижняя граница | нет |
 | [IntConfigReader.cs](../src/AiRecruiter/Configuration/IntConfigReader.cs) | конфигурация | целое число с значением по умолчанию | нет |
@@ -123,6 +134,12 @@ flowchart TD
     Q -->|ниже порога| S[analyzed_low]
     Q -->|проходит| T[Отправка в Telegram]
     T --> U[sent или send_failed]
+    P -->|исключение| X{Тип исключения}
+    X -->|сетевая / 401| STOP[Остановка прогона, new]
+    X -->|другое| R
+    R -->|attempts >= 3| AB[analysis_abandoned]
+    AB --> Z
+    STOP --> Z
     M --> Z[Итоговый отчёт]
     O --> Z
     R --> Z
@@ -134,14 +151,20 @@ flowchart TD
 
 | Статус | Где ставится | Что дальше |
 |---|---|---|
-| `new` | до анализа — [Program.cs:364-381](../src/AiRecruiter/Program.cs#L364-L381) | не входит в `GetLinksToSkip`; обновляется ветками анализа; исключение оставляет `new` |
-| `seen` | legacy-строки старых версий; миграция удалена | попадает в `GetLinksToSkip`, не парсится заново |
-| `filtered_stopword` | до GigaChat — [Program.cs:313-333](../src/AiRecruiter/Program.cs#L313-L333) | в `GetLinksToSkip`, не анализируется повторно |
-| `filtered_salary` | до GigaChat — [Program.cs:339-360](../src/AiRecruiter/Program.cs#L339-L360) | в `GetLinksToSkip`, не анализируется повторно |
-| `analysis_failed` | анализ без описания или провал — [Program.cs:390-410](../src/AiRecruiter/Program.cs#L390-L410) | не попадает в `GetLinksToSkip` — [VacancyRepository.cs:199-211](../src/AiRecruiter/Storage/VacancyRepository.cs#L199-L211), переанализируется при следующем появлении в выдаче |
-| `analyzed_low` | оценка ниже порога — [Program.cs:415-437](../src/AiRecruiter/Program.cs#L415-L437) | в `GetLinksToSkip`, в Telegram не отправляется |
-| `analyzed_ok` | оценка не ниже порога — [Program.cs:438-473](../src/AiRecruiter/Program.cs#L438-L473) | живёт только между `Upsert` и `SetStatus` в одной итерации цикла |
-| `sent` / `send_failed` | результат отправки — [Program.cs:465](../src/AiRecruiter/Program.cs#L465) | обе попадают в повторную отправку из сохранённого результата — [VacancyRepository.cs:213-245](../src/AiRecruiter/Storage/VacancyRepository.cs#L213-L245) |
+| `new` | до анализа — [Program.cs:338](../src/AiRecruiter/Program.cs#L338) | не входит в `GetLinksToSkip`; обновляется ветками анализа; сетевая остановка оставляет `new` без списания попытки — [ADR-0013](adr/0013-network-errors-stop-run.md), [Program.cs:406-414](../src/AiRecruiter/Program.cs#L406-L414) |
+| `seen` | legacy: только старые строки, новые с ним не создаются | попадает в `GetLinksToSkip`, не парсится заново |
+| `filtered_stopword` | до GigaChat — [Program.cs:311-321](../src/AiRecruiter/Program.cs#L311-L321) | в `GetLinksToSkip`, не анализируется повторно |
+| `filtered_salary` | до GigaChat — [Program.cs:323-334](../src/AiRecruiter/Program.cs#L323-L334) | в `GetLinksToSkip`, не анализируется повторно |
+| `analysis_failed` | анализ без описания или провал — [Program.cs:344-361](../src/AiRecruiter/Program.cs#L344-L361), не-сетевое исключение — [Program.cs:420-437](../src/AiRecruiter/Program.cs#L420-L437) | не попадает в `GetLinksToSkip` — [VacancyRepository.cs:353-366](../src/AiRecruiter/Storage/VacancyRepository.cs#L353-L366); переанализируется при следующем появлении в выдаче; `attempts + 1`; после 3 неудач → `analysis_abandoned` |
+| `analysis_abandoned` | 3 неудачных попытки: в `SaveAnalysis` — [VacancyRepository.cs:230-310](../src/AiRecruiter/Storage/VacancyRepository.cs#L230-L310) или sweep на старте — [VacancyRepository.cs:136-149](../src/AiRecruiter/Storage/VacancyRepository.cs#L136-L149) | терминальный: в `GetLinksToSkip`, в Telegram не уходит, попытки не списываются; возврат — SQL в [README.md](../README.md) |
+| `analyzed_low` | оценка ниже порога — [Program.cs:362-378](../src/AiRecruiter/Program.cs#L362-L378) | в `GetLinksToSkip`, в Telegram не отправляется |
+| `analyzed_ok` | оценка не ниже порога — [Program.cs:380-405](../src/AiRecruiter/Program.cs#L380-L405) | живёт только между `SaveAnalysis` и `SetStatus` в одной итерации цикла |
+| `sent` / `send_failed` | результат отправки — [Program.cs:396](../src/AiRecruiter/Program.cs#L396) | обе попадают в повторную отправку из сохранённого результата — [VacancyRepository.cs:371-406](../src/AiRecruiter/Storage/VacancyRepository.cs#L371-L406) |
+
+Строки статусов — константы [VacancyStatus.cs](../src/AiRecruiter/Storage/VacancyStatus.cs);
+полный список — `VacancyStatus.All`; строковые литералы статусов в C# не
+используются (исключение — legacy-миграция
+[VacancyRepository.cs:127-133](../src/AiRecruiter/Storage/VacancyRepository.cs#L127-L133)).
 
 ## Схема БД
 
@@ -166,61 +189,51 @@ erDiagram
         TEXT work_format
         TEXT published_at
         TEXT description
+        INTEGER attempts
     }
 ```
 
 Схема создаётся —
-[VacancyRepository.cs:52-77](../src/AiRecruiter/Storage/VacancyRepository.cs#L52-L77),
+[VacancyRepository.cs:57-84](../src/AiRecruiter/Storage/VacancyRepository.cs#L57-L84),
 отсутствующие колонки добавляются миграцией —
-[VacancyRepository.cs:83-114](../src/AiRecruiter/Storage/VacancyRepository.cs#L83-L114).
+[VacancyRepository.cs:90-121](../src/AiRecruiter/Storage/VacancyRepository.cs#L90-L121);
+sweep `analysis_failed` с `attempts >= 3` → `analysis_abandoned` выполняется
+после миграции в той же транзакции —
+[VacancyRepository.cs:136-149](../src/AiRecruiter/Storage/VacancyRepository.cs#L136-L149).
 
 ## Поля
 
 | Поле | Тип | Смысл | Источник в коде |
 |---|---|---|---|
 | `employer_id` | TEXT NULL | идентификатор работодателя | из ссылки компании — [HhParser.cs:391](../src/AiRecruiter/Parsers/HhParser.cs#L391), извлечение — [HhParser.cs:1576-1603](../src/AiRecruiter/Parsers/HhParser.cs#L1576-L1603) |
-| `score` | INTEGER NULL | оценка GigaChat 1..10 | [JobAnalyzer.cs:870](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L870) |
-| `first_seen` | TEXT NOT NULL | время первой записи в БД | [Program.cs:307](../src/AiRecruiter/Program.cs#L307) |
-| `analyzed_at` | TEXT NULL | время анализа или отправки | [Program.cs:399](../src/AiRecruiter/Program.cs#L399), [Program.cs:424](../src/AiRecruiter/Program.cs#L424), [Program.cs:450](../src/AiRecruiter/Program.cs#L450), [VacancyRepository.cs:167-169](../src/AiRecruiter/Storage/VacancyRepository.cs#L167-L169) |
+| `score` | INTEGER NULL | оценка GigaChat 1..10 | [JobAnalyzer.cs:881](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L881) |
+| `first_seen` | TEXT NOT NULL | время первой записи в БД | [Program.cs:309](../src/AiRecruiter/Program.cs#L309) |
+| `analyzed_at` | TEXT NULL | время анализа или отправки | [Program.cs:534](../src/AiRecruiter/Program.cs#L534), [VacancyRepository.cs:314-320](../src/AiRecruiter/Storage/VacancyRepository.cs#L314-L320) |
 | `tech_stack` | TEXT NULL | стек из описания вакансии | [HhParser.cs:686](../src/AiRecruiter/Parsers/HhParser.cs#L686) |
 | `experience` | TEXT NULL | опыт по белому списку | [HhParser.cs:393-443](../src/AiRecruiter/Parsers/HhParser.cs#L393-L443) |
 | `employment` | TEXT NULL | тип занятости | [HhParser.cs:501-526](../src/AiRecruiter/Parsers/HhParser.cs#L501-L526) |
 | `work_format` | TEXT NULL | формат работы | [HhParser.cs:445-471](../src/AiRecruiter/Parsers/HhParser.cs#L445-L471) |
 | `published_at` | TEXT NULL | дата публикации | [HhParser.cs:590](../src/AiRecruiter/Parsers/HhParser.cs#L590) |
-| `description` | TEXT NULL | полное описание, только для `analysis_failed` / `analysis_abandoned`; при успехе очищается | [Program.cs:408](../src/AiRecruiter/Program.cs#L408) — запись, [Program.cs:433](../src/AiRecruiter/Program.cs#L433), [Program.cs:459](../src/AiRecruiter/Program.cs#L459) — очистка; политика — [ADR-0012](adr/0012-full-description-prompt.md) |
+| `attempts` | INTEGER NOT NULL DEFAULT 0 | число неудачных попыток анализа; растёт только в `SaveAnalysis` одной транзакцией с результатом — [VacancyRepository.cs:230-310](../src/AiRecruiter/Storage/VacancyRepository.cs#L230-L310); `Upsert` и `SetStatus` не меняют; после 3 неудач — `analysis_abandoned` (лимит 3, константа — [VacancyRepository.cs:44](../src/AiRecruiter/Storage/VacancyRepository.cs#L44)) |
+| `description` | TEXT NULL | полное описание, только для `analysis_failed` / `analysis_abandoned`; при успехе очищается | [Program.cs:358](../src/AiRecruiter/Program.cs#L358) — запись, [Program.cs:374](../src/AiRecruiter/Program.cs#L374), [Program.cs:390](../src/AiRecruiter/Program.cs#L390) — очистка; политика — [ADR-0012](adr/0012-full-description-prompt.md) |
+| `fail_reason` | TEXT NULL | причина неудачи анализа, не длиннее 500 символов — [VacancyRepository.cs:41](../src/AiRecruiter/Storage/VacancyRepository.cs#L41) | `result.FailReason` — [JobAnalyzer.cs:27](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L27), обрезка — [VacancyRepository.cs:233-236](../src/AiRecruiter/Storage/VacancyRepository.cs#L233-L236) |
 
 ## Известные расхождения с решениями
 
-- `analysis_abandoned` отсутствует; статусы — строковые литералы, не константы —
-  [Program.cs:320](../src/AiRecruiter/Program.cs#L320),
-  [Program.cs:346](../src/AiRecruiter/Program.cs#L346),
-  [Program.cs:371](../src/AiRecruiter/Program.cs#L371),
-  [Program.cs:397](../src/AiRecruiter/Program.cs#L397),
-  [Program.cs:422](../src/AiRecruiter/Program.cs#L422),
-  [Program.cs:448](../src/AiRecruiter/Program.cs#L448); исправление —
-  [roadmap 3.2a, шаг 6](roadmap.md).
 - Журнала `llm_calls`, таблиц `prompt_versions` и `candidate_profiles` в БД нет
   — не реализовано; исправление — [roadmap 3.2a, шаг 7](roadmap.md).
 - `GetScoreDistribution` —
-  [VacancyRepository.cs:185](../src/AiRecruiter/Storage/VacancyRepository.cs#L185)
+  [VacancyRepository.cs:337](../src/AiRecruiter/Storage/VacancyRepository.cs#L337)
   — вызывается только из тестов; гистограмма в итоговом отчёте считается в
-  памяти — [Program.cs:289](../src/AiRecruiter/Program.cs#L289),
-  [Program.cs:490](../src/AiRecruiter/Program.cs#L490); исправление —
+  памяти — [Program.cs:290](../src/AiRecruiter/Program.cs#L290),
+  [Program.cs:461](../src/AiRecruiter/Program.cs#L461); исправление —
   технический бэклог после 3.6 в [roadmap](roadmap.md).
-- Исключение в цикле анализа оставляет строку `new` без `fail_reason` и без
-  счётчика попыток — [Program.cs:479-482](../src/AiRecruiter/Program.cs#L479-L482):
-  только лог; вакансия переанализируется при каждом появлении в выдаче без
-  лимита; исправление — [roadmap 3.2a, шаг 6](roadmap.md).
-- `GetLinksToSkip` — белый список статусов —
-  [VacancyRepository.cs:206-208](../src/AiRecruiter/Storage/VacancyRepository.cs#L206-L208);
-  решение — исключение `NOT IN ('new','analysis_failed')`; исправление —
-  [roadmap 3.2a, шаг 6](roadmap.md).
 - Telegram не разбивает сообщения длиннее 4096 —
   [TelegramNotifier.cs:78-99](../src/AiRecruiter/Notifiers/TelegramNotifier.cs#L78-L99);
   исправление — [roadmap 3.2a, шаг 8](roadmap.md).
 - `usage` / `completion_tokens` не читаются, критерий пересмотра `MaxTokens`
   ([ADR-0004](adr/0004-max-tokens-1200.md)) не измеряется; код-дефолт — 1200 —
-  [JobAnalyzer.cs:96](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L96);
+  [JobAnalyzer.cs:102](../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102);
   исправление — калибровка 3.2 в [roadmap](roadmap.md).
 - Контакты `Contacts:Fio/Tg/Phone/Email` проверяются на старте —
   [Program.cs:119-143](../src/AiRecruiter/Program.cs#L119-L143) — и в анализатор

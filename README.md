@@ -11,7 +11,7 @@ Telegram.
 1. Парсит hh.ru через AngleSharp (без официального API).
 2. Анализирует вакансии через GigaChat с учётом `candidate_summary.md` —
    единственного источника для оценки
-   ([JobAnalyzer.cs:392](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L392)).
+   ([JobAnalyzer.cs:398](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L398)).
 3. Отправляет подходящие вакансии в Telegram с оценкой соответствия.
 
 ## Требования
@@ -100,8 +100,8 @@ Ctrl+C — остановиться после текущей вакансии, 
 |---|---|---|
 | `Search:Query`, `Search:AreaCode` | — | поисковый запрос и регион hh.ru (`113` — Россия, только удалёнка; `4` — Новосибирск, любой формат) |
 | `Contacts:Fio`, `Tg`, `Phone`, `Email` | — | контакты кандидата; все четыре обязательны и проверяются на старте ([Program.cs:113-143](src/AiRecruiter/Program.cs#L113-L143)); в оценке не участвуют ([ADR-0011](docs/adr/0011-contacts-in-cover-letter.md)) |
-| `GigaChat:Model` | `GigaChat-2-Pro` | название модели; код-дефолт совпадает с решением ([JobAnalyzer.cs:93](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L93)), [ADR-0003](docs/adr/0003-gigachat-pro-model.md) |
-| `GigaChat:Temperature` / `TopP` / `MaxTokens` | 0.15 / 0.9 / 1200 | параметры модели; `MaxTokens` код-дефолт 1200 ([JobAnalyzer.cs:96](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L96)), [ADR-0004](docs/adr/0004-max-tokens-1200.md) |
+| `GigaChat:Model` | `GigaChat-2-Pro` | название модели; код-дефолт совпадает с решением ([JobAnalyzer.cs:99](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L99)), [ADR-0003](docs/adr/0003-gigachat-pro-model.md) |
+| `GigaChat:Temperature` / `TopP` / `MaxTokens` | 0.15 / 0.9 / 1200 | параметры модели; `MaxTokens` код-дефолт 1200 ([JobAnalyzer.cs:102](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102)), [ADR-0004](docs/adr/0004-max-tokens-1200.md) |
 | `HhParser:Thresholds:*` | 5 вакансий; 80 / 80 / 10 / 10 / 10 % | пороги алерта о смене вёрстки hh.ru: `MinVacanciesForAlert`, `RequirementsPercent`, `DescriptionPercent`, `ResponsibilitiesPercent`, `KeySkillsPercent`, `ConditionsPercent` — [Program.cs:213-218](src/AiRecruiter/Program.cs#L213-L218) |
 | `Filters:MinSalary` | `0` | минимальная зарплата в рублях; 0 — фильтр выключен; вакансии без зарплаты и в других валютах проходят |
 | `Filters:ExcludeTitleWords` | `[]` | слова в заголовке, при которых вакансия пропускается до GigaChat |
@@ -111,6 +111,28 @@ Ctrl+C — остановиться после текущей вакансии, 
 Метка «🔥 откликаться» при score ≥ 7, «💭 на подумать» при 3–6. Вакансии ниже
 порога — только в лог (и в БД со статусом `analyzed_low`); в Telegram не
 отправляются.
+
+Каждая неудача анализа (плохой JSON, нет описания, не-сетевое исключение)
+записывается в `vacancies` со статусом `analysis_failed`, причиной в
+`fail_reason` и увеличивает счётчик попыток `attempts`. После трёх неудач
+вакансия переводится в терминальный статус `analysis_abandoned` и больше не
+анализируется автоматически. Сетевые ошибки GigaChat и `401` работают иначе:
+прогон останавливается с понятным сообщением, строка остаётся `new`, попытки
+не списываются
+([ADR-0013](docs/adr/0013-network-errors-stop-run.md)).
+
+Возврат `analysis_abandoned` в работу — вручную, после исправления причины:
+
+```sql
+UPDATE vacancies
+SET attempts = 0,
+    status = 'analysis_failed',
+    fail_reason = NULL
+WHERE link = '...';
+```
+
+Следующий прогон возьмёт вакансию в анализ, только если она снова появится в
+выдаче.
 
 ## Структура репозитория
 
@@ -177,7 +199,8 @@ dotnet run --project src/AiRecruiter/AiRecruiter.csproj -- --parse-samples tests
 | `GIGACHAT_AUTH_KEY` не установлена | экспортировать переменную в текущей сессии |
 | `Ошибка: не заданы контакты: …` | заполнить `Contacts:Fio`, `Tg`, `Phone`, `Email` |
 | `TELEGRAM_CHAT_ID` должен быть целым числом | указать число без `@` и кавычек |
-| `401` от GigaChat | проверить ключ, срок его действия и доступ к `gigachat.devices.sberbank.ru` |
+| `401` от GigaChat | проверить ключ, срок его действия и доступ к `gigachat.devices.sberbank.ru`; после внутренних повторов прогон останавливается, попытки не списываются |
+| `[Остановка] Сетевая ошибка GigaChat` | восстановить сеть, запустить прогон снова: строки остались `new`, попытки не списаны ([ADR-0013](docs/adr/0013-network-errors-stop-run.md)) |
 | `403` или пустая выдача от hh.ru | снизить частоту запусков, проверить сеть и прокси |
 | `⚠️ HhParser: подозрение на смену вёрстки` | прогнать `--parse-samples samples` и обновить селекторы/сэмплы |
 | Telegram молчит | проверить `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` и прокси-переменные |
@@ -197,8 +220,14 @@ dotnet test AiRecruiter.slnx
 - `SalaryFilterTests` — разбор строки зарплаты и предфильтр по порогу.
 - `TitleFilterTests` — поиск стоп-слов в заголовке вакансии.
 - `VacancyRepositoryTests` — SQLite-хранилище вакансий.
+- `VacancyRepositoryAttemptsTests` — `attempts`, `analysis_abandoned`, sweep,
+  `GetLinksToSkip` по исключению, политика `description`, обрезка
+  `fail_reason`, миграция колонки `attempts`.
+- `VacancyStatusTests` — полнота списка статусов, `seen` — legacy.
+- `IsRunStoppingExceptionTests` — сетевые ошибки и таймаут останавливают прогон.
+- `BuildAbandonedLinesTests` — строки `[Abandoned]` в `[ИТОГ]`.
 
-Всего 123 теста.
+Всего 146 тестов.
 
 ## Разработка
 

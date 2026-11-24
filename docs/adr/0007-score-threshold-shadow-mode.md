@@ -26,9 +26,9 @@
 
 - чтение порога — [Program.cs:201](../../src/AiRecruiter/Program.cs#L201);
 - оценка ниже порога → статус `analyzed_low`, в Telegram не отправляется —
-  [Program.cs:411-437](../../src/AiRecruiter/Program.cs#L411-L437);
+  [Program.cs:362-378](../../src/AiRecruiter/Program.cs#L362-L378);
 - оценка не ниже порога → статус `analyzed_ok` и отправка —
-  [Program.cs:438-473](../../src/AiRecruiter/Program.cs#L438-L473).
+  [Program.cs:380-405](../../src/AiRecruiter/Program.cs#L380-L405).
 
 ## Последствия
 

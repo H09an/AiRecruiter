@@ -25,11 +25,11 @@
 
 - правило в промпте: не выводить уровень кандидата из общего стажа, использовать
   только явные факты из сводки —
-  [JobAnalyzer.cs:944](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L944);
+  [JobAnalyzer.cs:955](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L955);
 - сводка кандидата передаётся в конструктор строкой —
-  [JobAnalyzer.cs:89-92](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L89-L92);
+  [JobAnalyzer.cs:95-98](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L95-L98);
 - конструктор анализатора не принимает уровень —
-  [JobAnalyzer.cs:89-97](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L89-L97).
+  [JobAnalyzer.cs:95-103](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L95-L103).
 
 ## Последствия
 

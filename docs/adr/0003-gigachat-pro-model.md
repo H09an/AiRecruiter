@@ -23,7 +23,7 @@
 Текущее состояние кода:
 
 - код-дефолт модели — `GigaChat-2-Pro` —
-  [JobAnalyzer.cs:93](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L93);
+  [JobAnalyzer.cs:99](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L99);
   конфигурация переопределяет значение;
 - `GigaChat-2-Pro` задан в `appsettings.example.json` —
   [appsettings.example.json](../../appsettings.example.json).
