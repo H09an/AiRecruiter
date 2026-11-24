@@ -2,7 +2,7 @@
 
 ## Статус
 
-Принято, реализовано частично.
+Принято, реализовано.
 
 ## Дата
 
@@ -22,19 +22,19 @@
 
 Текущее состояние кода:
 
-- код читает `GigaChat:Model`, значение по умолчанию — `GigaChat` —
-  [JobAnalyzer.cs:99](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L99);
-- `GigaChat-2-Pro` задан только в локальном `appsettings.json`, которого нет в
-  git; в репозитории есть `appsettings.example.json` с тем же значением —
+- код-дефолт модели — `GigaChat-2-Pro` —
+  [JobAnalyzer.cs:93](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L93);
+  конфигурация переопределяет значение;
+- `GigaChat-2-Pro` задан в `appsettings.example.json` —
   [appsettings.example.json](../../appsettings.example.json).
 
 ## Последствия
 
 Для кода:
 
-- модель настраивается без правки кода; при отсутствии конфигурации используется
-  `GigaChat` по умолчанию, что не совпадает с принятым решением.
+- модель настраивается без правки кода; без конфигурации работает
+  `GigaChat-2-Pro` — совпадает с решением.
 
 Что ещё не сделано:
 
-- код-дефолт модели — `GigaChat`; поднять до `GigaChat-2-Pro` в 3.2a (шаг 5).
+- «Модель `GigaChat`» (базовый вариант) не используется по умолчанию.

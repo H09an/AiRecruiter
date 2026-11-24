@@ -95,7 +95,7 @@
 - Правило: документ меняется в том же коммите, что и код. Коммит без нужного
   обновления документа не принимается; «обновлю после коммита» недопустимо.
 - Формат ссылок на код: markdown-ссылка с якорем `#L` на строку (например
-  `[Program.cs:192-193](src/AiRecruiter/Program.cs#L192-L193)`); голых записей
+  `[Program.cs:198-199](src/AiRecruiter/Program.cs#L198-L199)`); голых записей
   вида `путь:строка` в документах нет. При изменении кода перепроверять, что
   строка по ссылке соответствует тексту: `check-docs.sh` проверяет путь и
   якорь, но не содержимое.
@@ -236,7 +236,7 @@
   понадобился повтор. (план, шаги 5 и 7).
 - Telegram: без обрезки текста; длину комментария задаёт правило в промпте.
   Существующая проверка `comment` 10–800 символов —
-  [JobAnalyzer.cs:865-880](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L865-L880) —
+  [JobAnalyzer.cs:715-730](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L715-L730) —
   остаётся; превышение 4096 символов — отправка вторым сообщением (план, шаг 8;
   в коде пока нет).
 - `resume.txt` и `profile.md` в анализе и письме не используются: единственный
@@ -261,10 +261,9 @@
   их содержание из `candidate_summary.md`, а не суммарное число лет.
 - `ReclassifyDesirableMissing` определяет обязательность навыка по
   пункту/секции, где он найден, а не по словам «обязательно/желательно» во всём
-  описании. Решение 3.2a, в коде пока не реализовано: сейчас маркеры
-  обязательности и желательности ищутся по всему тексту требований и описания —
-  [JobAnalyzer.cs:1090-1094](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L1090-L1094).
-  (план, шаг 5).
+  описании. Реализовано в 3.2a (шаг 5): единицы текста — пункты с ближайшим
+  заголовком секции; маркеры ищутся только в единице, где найден навык —
+  [JobAnalyzer.cs:1061-1117](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L1061-L1117).
 - Порог Telegram `Analyzer:MinScore = 3`. Оценки ниже порога пишутся в лог и в
   БД со статусом `analyzed_low`, в Telegram не отправляются. Метка «🔥
   откликаться» при score ≥ 7, «💭 на подумать» при 3–6. Почему: заказчик снизил
@@ -272,12 +271,11 @@
   калибровки на данных.
 - Shadow mode на старте: анализируем всё, в Telegram по порогу. Почему: не
   получить пустой Telegram из-за слишком жёстких фильтров.
-- Код-дефолты GigaChat сейчас: `MaxTokens = 800`, модель `GigaChat` —
-  [JobAnalyzer.cs:99](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L99),
-  [JobAnalyzer.cs:102](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102). Решение
-  3.2a: поднять до `MaxTokens = 1200` и `GigaChat-2-Pro`; README и
-  [appsettings.example.json](appsettings.example.json) приводятся к ним. (план,
-  шаг 5).
+- Код-дефолты GigaChat: `MaxTokens = 1200`, модель `GigaChat-2-Pro` —
+  [JobAnalyzer.cs:93](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L93),
+  [JobAnalyzer.cs:96](src/AiRecruiter/Analyzers/JobAnalyzer.cs#L96); README и
+  [appsettings.example.json](appsettings.example.json) приведены к ним
+  (3.2a, шаг 5).
 - После 3.6 — отдельный этап: фильтры выносятся в отдельный файл `filters.yaml`,
   который владелец правит без кода; в git — `filters.example.yaml` с
   комментариями, инструкция в `docs/filters.md`, чтение через `YamlDotNet`.

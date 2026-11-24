@@ -524,4 +524,111 @@ public sealed class VacancyRepositoryTests : IDisposable
         Assert.Contains("https://hh.ru/vacancy/1", _repository.GetLinksToSkip());
         Assert.Contains("https://hh.ru/vacancy/2", _repository.GetLinksToSkip());
     }
+
+    private static VacancyRecord RecordWithDescription(
+        string status,
+        string? description,
+        string link = "https://hh.ru/vacancy/1",
+        string? failReason = null) => new(
+            Link: link,
+            EmployerId: null,
+            Title: "QA engineer",
+            Company: "Company",
+            Salary: "100 000 ₽",
+            Score: null,
+            Status: status,
+            FirstSeen: "2026-01-01T00:00:00.0000000Z",
+            AnalyzedAt: "2026-01-01T01:00:00.0000000Z",
+            FailReason: failReason,
+            Comment: null,
+            CoverLetter: null,
+            TechStack: "Docker",
+            Description: description);
+
+    [Fact]
+    public void Upsert_Description_WrittenForAnalysisFailed_ClearedOnSuccess()
+    {
+        _repository.Upsert(RecordWithDescription("analysis_failed", "Полное описание вакансии", failReason: "нет score"));
+
+        Assert.Equal(
+            "Полное описание вакансии",
+            QueryScalar("SELECT description FROM vacancies WHERE link = 'https://hh.ru/vacancy/1'"));
+
+        _repository.Upsert(RecordWithDescription("analyzed_low", null, failReason: null));
+
+        Assert.Null(QueryScalar("SELECT description FROM vacancies WHERE link = 'https://hh.ru/vacancy/1'"));
+
+        _repository.Upsert(RecordWithDescription("analyzed_ok", null, failReason: null));
+
+        Assert.Null(QueryScalar("SELECT description FROM vacancies WHERE link = 'https://hh.ru/vacancy/1'"));
+    }
+
+    [Fact]
+    public void Initialize_LegacySchemaWithoutDescription_AddsColumnWithoutRowLoss()
+    {
+        // Схема шага 4: без description.
+        var legacyPath = Path.Combine(Path.GetTempPath(), $"vacancies_test_{Guid.NewGuid():N}.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={legacyPath}"))
+            {
+                connection.Open();
+                connection.Execute("""
+                    CREATE TABLE vacancies (
+                        link TEXT PRIMARY KEY,
+                        employer_id TEXT,
+                        title TEXT,
+                        company TEXT,
+                        salary TEXT,
+                        score INTEGER,
+                        status TEXT NOT NULL,
+                        first_seen TEXT NOT NULL,
+                        analyzed_at TEXT,
+                        fail_reason TEXT,
+                        comment TEXT,
+                        cover_letter TEXT,
+                        tech_stack TEXT,
+                        experience TEXT,
+                        employment TEXT,
+                        work_format TEXT,
+                        published_at TEXT
+                    );
+                    INSERT INTO vacancies (link, status, first_seen) VALUES
+                        ('https://hh.ru/vacancy/1', 'new', '2026-01-01T00:00:00.0000000Z'),
+                        ('https://hh.ru/vacancy/2', 'analyzed_ok', '2026-01-01T00:00:00.0000000Z');
+                    """);
+            }
+
+            var repository = new VacancyRepository(legacyPath);
+            repository.Initialize();
+            repository.Initialize();
+
+            using (var connection = new SqliteConnection($"Data Source={legacyPath}"))
+            {
+                connection.Open();
+                Assert.Equal(
+                    "description",
+                    connection.ExecuteScalar<string>(
+                        "SELECT name FROM pragma_table_info('vacancies') WHERE name = 'description'"));
+                Assert.Equal(
+                    2,
+                    connection.ExecuteScalar<long>("SELECT COUNT(*) FROM vacancies"));
+                Assert.Equal(
+                    "new",
+                    connection.ExecuteScalar<string>(
+                        "SELECT status FROM vacancies WHERE link = 'https://hh.ru/vacancy/1'"));
+            }
+        }
+        finally
+        {
+            foreach (var suffix in DatabaseFileSuffixes)
+            {
+                var path = legacyPath + suffix;
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+        }
+    }
 }

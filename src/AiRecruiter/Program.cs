@@ -142,12 +142,21 @@ public sealed class Program
                 return;
             }
 
-            var contacts = $"{fio},\ntg: {tg},\ntel: {phone},\nemail: {email}";
+            // Сводка кандидата читается один раз и обязательна: без неё
+            // парсинга, анализа и отправки нет (контакты идут в письмо в 3.3,
+            // ADR-0011).
+            string? candidateSummary = File.Exists("candidate_summary.md")
+                ? await File.ReadAllTextAsync("candidate_summary.md")
+                : null;
 
-            string resumeText = File.Exists("resume.txt") ? await File.ReadAllTextAsync("resume.txt") : "Резюме не найдено.";
-            string profileText = File.Exists("profile.md") ? await File.ReadAllTextAsync("profile.md") : "Профиль не найден.";
-            string candidateSummary = File.Exists("candidate_summary.md") ? await File.ReadAllTextAsync("candidate_summary.md") : "Сводка кандидата не найдена.";
+            var validSummary = CandidateSummaryValidator.Validate(candidateSummary, out var summaryError);
+            if (validSummary is null)
+            {
+                Logger.Log(summaryError);
+                return;
+            }
 
+            candidateSummary = validSummary;
             if (string.IsNullOrEmpty(authKey))
             {
                 Console.WriteLine("Ошибка: переменная окружения GIGACHAT_AUTH_KEY не установлена.");
@@ -164,13 +173,10 @@ public sealed class Program
                 return;
             }
 
-            if (string.IsNullOrEmpty(searchQuery)
-                || string.IsNullOrEmpty(areaCode)
-                || string.IsNullOrEmpty(resumeText)
-                || string.IsNullOrEmpty(profileText))
+            if (string.IsNullOrEmpty(searchQuery) || string.IsNullOrEmpty(areaCode))
             {
                 Logger.Log("Ошибка: не заданы все необходимые значения конфигурации.");
-                Logger.Log("Пожалуйста, укажите Search:Query, Search:AreaCode и проверьте содержимое файлов resume.txt и profile.md.");
+                Logger.Log("Пожалуйста, укажите Search:Query и Search:AreaCode.");
                 return;
             }
 
@@ -265,7 +271,7 @@ public sealed class Program
                 }
             }
 
-            var analyzer = new JobAnalyzer(authKey, resumeText, profileText, contacts, config);
+            var analyzer = new JobAnalyzer(authKey, candidateSummary, config);
 
             using var notifier = new TelegramNotifier(botToken, chatId);
 
@@ -398,7 +404,8 @@ public sealed class Program
                             Experience: ToDbValue(vacancy.Experience),
                             Employment: ToDbValue(vacancy.Employment),
                             WorkFormat: ToDbValue(vacancy.WorkFormat),
-                            PublishedAt: ToDbValue(vacancy.PublishedAt)));
+                            PublishedAt: ToDbValue(vacancy.PublishedAt),
+                            Description: vacancy.HasDescription ? vacancy.Description : null));
                         skipLinks.Add(vacancy.Link);
                     }
                     else if (result.Score < minScore)
@@ -422,7 +429,8 @@ public sealed class Program
                             Experience: ToDbValue(vacancy.Experience),
                             Employment: ToDbValue(vacancy.Employment),
                             WorkFormat: ToDbValue(vacancy.WorkFormat),
-                            PublishedAt: ToDbValue(vacancy.PublishedAt)));
+                            PublishedAt: ToDbValue(vacancy.PublishedAt),
+                            Description: null));
                         skipLinks.Add(vacancy.Link);
                         scoreCounts[result.Score]++;
                         belowThresholdCount++;
@@ -447,7 +455,8 @@ public sealed class Program
                             Experience: ToDbValue(vacancy.Experience),
                             Employment: ToDbValue(vacancy.Employment),
                             WorkFormat: ToDbValue(vacancy.WorkFormat),
-                            PublishedAt: ToDbValue(vacancy.PublishedAt)));
+                            PublishedAt: ToDbValue(vacancy.PublishedAt),
+                            Description: null));
 
                         // Политика отправки: score >= minScore — в Telegram;
                         // метка 🔥 при score >= 7, иначе 💭.

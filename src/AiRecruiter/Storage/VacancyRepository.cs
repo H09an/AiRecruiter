@@ -28,7 +28,8 @@ internal sealed record VacancyRecord(
     string? Experience = null,
     string? Employment = null,
     string? WorkFormat = null,
-    string? PublishedAt = null);
+    string? PublishedAt = null,
+    string? Description = null);
 
 /// <summary>
 /// Хранилище состояния вакансий в SQLite (vacancies.db). Соединение открывается
@@ -71,7 +72,8 @@ internal sealed class VacancyRepository
                 experience TEXT,
                 employment TEXT,
                 work_format TEXT,
-                published_at TEXT
+                published_at TEXT,
+                description TEXT
             );
             """, transaction: transaction);
 
@@ -87,6 +89,7 @@ internal sealed class VacancyRepository
                  {
                      "comment", "cover_letter", "tech_stack",
                      "experience", "employment", "work_format", "published_at",
+                     "description",
                  })
         {
             if (existingColumns.Contains(column, StringComparer.OrdinalIgnoreCase))
@@ -103,6 +106,7 @@ internal sealed class VacancyRepository
                 "employment" => "ALTER TABLE vacancies ADD COLUMN employment TEXT",
                 "work_format" => "ALTER TABLE vacancies ADD COLUMN work_format TEXT",
                 "published_at" => "ALTER TABLE vacancies ADD COLUMN published_at TEXT",
+                "description" => "ALTER TABLE vacancies ADD COLUMN description TEXT",
                 _ => throw new InvalidOperationException($"Нет ветки миграции для колонки {column}"),
             };
 
@@ -135,8 +139,8 @@ internal sealed class VacancyRepository
         using var connection = new SqliteConnection(_connectionString);
         connection.Open();
         connection.Execute("""
-            INSERT INTO vacancies (link, employer_id, title, company, salary, score, status, first_seen, analyzed_at, fail_reason, comment, cover_letter, tech_stack, experience, employment, work_format, published_at)
-            VALUES (@Link, @EmployerId, @Title, @Company, @Salary, @Score, @Status, @FirstSeen, @AnalyzedAt, @FailReason, @Comment, @CoverLetter, @TechStack, @Experience, @Employment, @WorkFormat, @PublishedAt)
+            INSERT INTO vacancies (link, employer_id, title, company, salary, score, status, first_seen, analyzed_at, fail_reason, comment, cover_letter, tech_stack, experience, employment, work_format, published_at, description)
+            VALUES (@Link, @EmployerId, @Title, @Company, @Salary, @Score, @Status, @FirstSeen, @AnalyzedAt, @FailReason, @Comment, @CoverLetter, @TechStack, @Experience, @Employment, @WorkFormat, @PublishedAt, @Description)
             ON CONFLICT(link) DO UPDATE SET
                 employer_id = @EmployerId,
                 title = @Title,
@@ -152,7 +156,8 @@ internal sealed class VacancyRepository
                 experience = @Experience,
                 employment = @Employment,
                 work_format = @WorkFormat,
-                published_at = @PublishedAt
+                published_at = @PublishedAt,
+                description = @Description
             """, record);
     }
 

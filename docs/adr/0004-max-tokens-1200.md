@@ -24,9 +24,10 @@
 
 Текущее состояние кода:
 
-- код по умолчанию использует 800 —
-  [JobAnalyzer.cs:102](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L102);
-- 1200 задан в конфигурации —
+- код-дефолт `MaxTokens = 1200` —
+  [JobAnalyzer.cs:96](../../src/AiRecruiter/Analyzers/JobAnalyzer.cs#L96);
+  конфигурация переопределяет значение;
+- `appsettings.example.json` —
   [appsettings.example.json](../../appsettings.example.json);
 - поля `usage` и `completion_tokens` из ответа GigaChat не читаются, критерий
   пересмотра не измеряется.
@@ -35,10 +36,10 @@
 
 Для кода:
 
-- без конфигурации работает 800 — усечённый JSON возможен; в конфигурации по
-  умолчанию репозитория значение 1200 применено.
+- без конфигурации работает 1200 — совпадает с решением; усечённый JSON
+  возможен при длинном описании — правило блоков описания —
+  [ADR-0012](0012-full-description-prompt.md).
 
 Что ещё не сделано:
 
-- чтение `usage` / `completion_tokens` и измерение критерия пересмотра;
-- код-дефолт `MaxTokens = 1200` — 3.2a (шаг 5).
+- чтение `usage` / `completion_tokens` и измерение критерия пересмотра.

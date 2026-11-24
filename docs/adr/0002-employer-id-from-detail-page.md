@@ -26,19 +26,19 @@
 Текущее состояние кода:
 
 - колонка `employer_id` существует в схеме —
-  [VacancyRepository.cs:51-110](../../src/AiRecruiter/Storage/VacancyRepository.cs#L51-L110);
+  [VacancyRepository.cs:52-78](../../src/AiRecruiter/Storage/VacancyRepository.cs#L52-L78);
 - `employer_id` извлекается из ссылки элемента
   `[data-qa='vacancy-company-name']` —
   [HhParser.cs:391](../../src/AiRecruiter/Parsers/HhParser.cs#L391),
   извлечение —
-  [HhParser.cs:1576-1607](../../src/AiRecruiter/Parsers/HhParser.cs#L1576-L1607)
+  [HhParser.cs:1576-1603](../../src/AiRecruiter/Parsers/HhParser.cs#L1576-L1603)
   — и передаётся во все `Upsert` —
-  [Program.cs:309](../../src/AiRecruiter/Program.cs#L309),
-  [Program.cs:335](../../src/AiRecruiter/Program.cs#L335),
-  [Program.cs:360](../../src/AiRecruiter/Program.cs#L360),
-  [Program.cs:386](../../src/AiRecruiter/Program.cs#L386),
-  [Program.cs:435](../../src/AiRecruiter/Program.cs#L435),
-  [Program.cs:410](../../src/AiRecruiter/Program.cs#L410).
+  [Program.cs:315](../../src/AiRecruiter/Program.cs#L315),
+  [Program.cs:341](../../src/AiRecruiter/Program.cs#L341),
+  [Program.cs:366](../../src/AiRecruiter/Program.cs#L366),
+  [Program.cs:392](../../src/AiRecruiter/Program.cs#L392),
+  [Program.cs:417](../../src/AiRecruiter/Program.cs#L417),
+  [Program.cs:443](../../src/AiRecruiter/Program.cs#L443).
 
 ## Последствия
 
