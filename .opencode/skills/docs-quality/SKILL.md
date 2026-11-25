@@ -21,7 +21,8 @@ description: AiRecruiter documentation checklist: ownership, structure, 80-colum
 - architecture — что код делает сейчас.
 - roadmap — что планируется, границы, DoD, риски.
 - ADR — почему решено так.
-- AGENTS — правила, роли, журнал решений.
+- AGENTS — роли, правила, документация, скиллы.
+- decisions — журнал процессных решений и указатели на ADR.
 - CHANGELOG — что изменилось.
 
 Один факт — один владелец. В других документах — краткая выжимка со ссылкой.
@@ -54,7 +55,7 @@ description: AiRecruiter documentation checklist: ownership, structure, 80-colum
 ## Планы
 
 - План работ — только в `docs/roadmap.md`.
-- Решение — в ADR или журнале решений.
+- Решение — в ADR или `docs/decisions.md`.
 - Текущее расхождение — в `docs/architecture.md`.
 - План нельзя удалить молча: перенос — со ссылкой, отказ — `отклонено`
   с причиной.
@@ -63,8 +64,8 @@ description: AiRecruiter documentation checklist: ownership, structure, 80-colum
 
 - При изменении кода перепроверять, что строка по ссылке соответствует
   тексту: `check-docs.sh` проверяет путь и якорь, но не содержимое.
-- После сдвига строк обновить все ссылки в README, AGENTS, architecture,
-  roadmap и ADR.
+- После сдвига строк обновить все ссылки в README, AGENTS, decisions,
+  architecture, roadmap и ADR.
 - `check-docs.sh` — обязательная механическая проверка, не замена ручной.
 
 ## Дубли и противоречия

@@ -19,7 +19,8 @@ git status --short
 
 Прочитать:
 
-- `AGENTS.md` — роли, правила, журнал решений;
+- `AGENTS.md` — роли, правила, документация, скиллы; `docs/decisions.md` —
+  журнал решений;
 - `docs/roadmap.md` — этап, границы, DoD, порядок работ;
 - `docs/architecture.md` — текущий поток и схема;
 - ADR по теме.

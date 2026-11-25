@@ -41,6 +41,9 @@
   check»).
 
 ### Изменено
+- `AGENTS.md` разделён на протокол и журнал решений: правила остались в
+  `AGENTS.md`, процессные решения и указатели на ADR перенесены в
+  `docs/decisions.md`; ссылки в ADR, roadmap и скиллах обновлены (ADR-0015).
 - `sqlite-migration`: `SaveAnalysisAttempt` заменён на `SaveAnalysis` в описании
   транзакции.
 - `GetLinksToSkip` строится по исключению

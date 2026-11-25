@@ -149,6 +149,7 @@ AiRecruiter/
 ├── docs/                     # документация
 │   ├── architecture.md       # текущее состояние кода
 │   ├── roadmap.md            # этапы и критерии готовности
+│   ├── decisions.md          # журнал процессных решений
 │   └── adr/                  # архитектурные решения (ADR)
 ├── scripts/                  # вспомогательные скрипты (check-docs.sh)
 ├── tests/AiRecruiter.Tests/  # тесты xUnit
