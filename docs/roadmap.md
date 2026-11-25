@@ -517,7 +517,7 @@ P0 и P1 — подготовительные правки, выполненны
 | 6 | `feat(storage): attempts и analysis_abandoned (этап 3.2a, коммит 6)` | `attempts`, `SaveFiltered` / `SaveAnalysis` вместо копий `Upsert` (шестая копия из шага 4 закрыта), статусы-константы `VacancyStatus`, `analysis_abandoned`, причина исключения в `fail_reason`, остановка прогона на сетевых ошибках и `401` (ADR-0013), `GetLinksToSkip` по исключению, sweep на старте, `[ИТОГ]` со списком abandoned | architecture, AGENTS, README, CHANGELOG, ADR-0013 | `done` |
 | 7 | `feat(storage): журнал llm_calls (этап 3.2a, коммит 7)` | `llm_calls`, `prompt_versions`, `candidate_profiles`, `GigaChatCallResult` (токены, модель, `http_attempts`), сумма токенов за прогон, политика `raw_response`, `main_text_source` | architecture, CHANGELOG, ADR о журнале | `planned` |
 | 8 | `feat(telegram): новый вид и лимит 4096 (этап 3.2a, коммит 8)` | новые строки, пустые поля, экранирование, второе сообщение, поля в retry; `SendAndRecord` вместо двух копий отправки; типизированный `PendingSend` вместо dynamic | architecture, CHANGELOG | `planned` |
-| 9 | `chore: финальная сверка и приёмка 3.2a (этап 3.2a, коммит 9)` | тесты на текущие словоформы заголовков и ложные срабатывания, сверка README/AGENTS/CHANGELOG/architecture, полная приёмка | README, AGENTS, architecture, CHANGELOG | `planned` |
+| 9 | `chore: финальная сверка и приёмка 3.2a (этап 3.2a, коммит 9)` | тесты на текущие словоформы заголовков и ложные срабатывания, сверка README/AGENTS/CHANGELOG/architecture, полная приёмка. Детали — ниже | README, AGENTS, architecture, CHANGELOG | `planned` |
 
 #### Шаг 3 — детали
 
@@ -535,6 +535,24 @@ P0 и P1 — подготовительные правки, выполненны
 
 Шаги 6–8 можно объединить, если заказчик потребует минимум коммитов, но тогда
 ревью станет крупнее. Дробление по слоям предпочтительнее.
+
+#### Шаг 9 — детали
+
+Три правки после разделения журнала решений
+([ADR-0015](adr/0015-protocol-and-journal.md)); сам перенос в шаги 3.2a не
+входит, эти пункты входят в шаг 9.
+
+- `CHANGELOG.md`, `[Unreleased]`: запись «`AGENTS.md`: в журнал решений
+  добавлены `prompt_versions`, `candidate_profiles`…» описывает состояние до
+  разделения — этих записей в журнале больше нет. Привести запись к текущему
+  состоянию: журнал — `docs/decisions.md`, решения живут в ADR и roadmap.
+  Вышедшие версии не переписывать.
+- `docs/architecture.md`: добавить текущее поведение «`comment` — 10–800
+  символов» (проверка в `JobAnalyzer`) в таблицу модулей или в описание
+  анализатора со ссылкой на код; сейчас факт есть только в скилле
+  `gigachat-contract` и в деталях шага 5.
+- `docs/adr/0001-sqlite-state.md`: в ссылке «раздел «Журнал решений»» заменить
+  на «документ «Журнал решений»» — в `docs/decisions.md` это H1, а не раздел.
 
 ### Критерии готовности
 
