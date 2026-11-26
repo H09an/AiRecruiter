@@ -4,24 +4,24 @@ ID: chore-p1. Продуктовый код (src/, tests/) не менялся.
 
 ## Изменено
 
-- [docs/process.md:22-38](docs/process.md#L22-L38) — чекпойнт владельца
+- [docs/process.md:22-38](../../process.md#L22-L38) — чекпойнт владельца
   после планирования переведён на «по исключению»: при проверенном DAG и
   отсутствии blocking-вопросов оркестратор продолжает сам; возврат
   владельцу — при blocking-вопросе, конфликте с roadmap/ADR, расширении
   объёма, исчерпанных лимитах раундов/шагов, недоступной модели.
-- [.opencode/skills/orchestration/SKILL.md:21-25](.opencode/skills/orchestration/SKILL.md#L21-L25)
+- [.opencode/skills/orchestration/SKILL.md:21-25](../../../.opencode/skills/orchestration/SKILL.md#L21-L25)
   — краткая выжимка правила со ссылкой на `docs/process.md`, без дубля
   формулировки.
-- [.opencode/skills/task-decomposition/SKILL.md:33-46](.opencode/skills/task-decomposition/SKILL.md#L33-L46)
+- [.opencode/skills/task-decomposition/SKILL.md:33-46](../../../.opencode/skills/task-decomposition/SKILL.md#L33-L46)
   — новый раздел «Инкрементальная запись»: каркас `breakdown.md` первым
   делом, детали по мере готовности; при возобновлении — чтение своего
   файла, а не перечитывание источников.
-- [.opencode/agents/planner.md:5](.opencode/agents/planner.md#L5) — шаги
+- [.opencode/agents/planner.md:5](../../../.opencode/agents/planner.md#L5) — шаги
   25 → 40; в системном промпте — правило инкрементальной записи.
-- [docs/decisions.md:69-75](docs/decisions.md#L69-L75) — две записи
+- [docs/decisions.md:69-75](../../decisions.md#L69-L75) — две записи
   2026-11-27: чекпойнт по исключению; инкрементальная запись артефакта и
   шаги planner 40.
-- [CHANGELOG.md:57-63](CHANGELOG.md#L57-L63) — `[Unreleased]` /
+- [CHANGELOG.md:57-63](../../../CHANGELOG.md#L57-L63) — `[Unreleased]` /
   «Изменено», два пункта без метки «Документация:» (меняется
   `.opencode`).
 
