@@ -3,7 +3,10 @@
 #   1) код изменился, а docs/architecture.md и CHANGELOG.md — нет;
 #   2) ссылка на код [путь:строки](путь#Lстроки) битая или текст не совпадает с якорем;
 #   3) обычная относительная markdown-ссылка ведёт на несуществующий путь;
-#   4) голая запись «путь:строка» вне markdown-ссылки.
+#   4) голая запись «путь:строка» вне markdown-ссылки;
+#   5) превышен лимит строк документа (AGENTS 250, docs/agents.md 200,
+#      docs/process.md 220, docs/documentation.md 110, ADR 60,
+#      docs/work/_template.md 60).
 # Использование:
 #   bash scripts/check-docs.sh                      # pre-commit: git diff --cached
 #   bash scripts/check-docs.sh <base-ref>           # CI: git diff <base-ref> HEAD
@@ -41,6 +44,25 @@ if [ -z "$doc_override" ]; then
         echo "WARNING: обновите документацию в этом же коммите (AGENTS.md, раздел «Документация»)."
     fi
 fi
+
+# --- 5. Лимиты строк документов ---
+check_limit() {
+    local file="$1" limit="$2" total
+    [ -f "$file" ] || return 0
+    total="$(awk 'END { print NR }' "$file")"
+    if [ "$total" -gt "$limit" ]; then
+        echo "WARNING: $file — $total строк при лимите $limit; сократите документ (docs/documentation.md, «Лимиты строк»)."
+    fi
+}
+
+check_limit AGENTS.md 250
+check_limit docs/agents.md 200
+check_limit docs/process.md 220
+check_limit docs/documentation.md 110
+check_limit docs/work/_template.md 60
+for adr in docs/adr/*.md; do
+    [ -f "$adr" ] && check_limit "$adr" 60
+done
 
 # --- Список документов ---
 doc_files=()

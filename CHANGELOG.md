@@ -41,6 +41,15 @@
   check»).
 
 ### Изменено
+- Процесс агентов v2: ростер из семи агентов в `.opencode/agents/`
+  (orchestrator, planner, coder, coder-deep, tester, reviewer, security),
+  Координатор распущен; новые скиллы `orchestration`, `task-decomposition`,
+  `qa-verification`, `security-audit`; глобальный запрет чтения PII-файлов
+  в `.opencode/opencode.jsonc`. Канон документов: `docs/agents.md`,
+  `docs/process.md`, `docs/documentation.md`, `docs/work/_template.md`
+  (ADR-0016, частично заменяет ADR-0015); `AGENTS.md` сокращён до входа,
+  правил и запретов; трек «Процесс агентов» P0–P3 в roadmap;
+  `scripts/check-docs.sh` проверяет лимиты строк документов.
 - Документация: роль загружает только скиллы своей матрицы; лишний скилл не
   загружается и возвращается автору промпта до начала работы.
 - Документация: в `docs/roadmap.md` добавлены детали шага 9 (запись журнала в
