@@ -52,6 +52,8 @@ repair, лимитов вызовов или журнала `llm_calls`.
 
 ## Проверки
 
+- Для risky code — test-first: тест из DoD пишется до кода (правило —
+  `docs/process.md`, «TDD для risky code»).
 - `JobAnalyzerDtoTests`, тесты промпта и repair.
 - `--replay-failed failed_responses` — офлайн-разбор.
 - `--parse-samples tests/Fixtures` — если менялись блоки описания.

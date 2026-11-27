@@ -20,6 +20,9 @@ description: "AiRecruiter planner checklist: epic-story-task breakdown with stag
 - Сложность: trivial (одна правка), standard (обычная задача), risky
   (схема БД, промпт, PII, внешние API); профиль цепочки по сложности —
   `docs/process.md`.
+- Для risky: планировщик выводит edge-тесты из контракта (не только из
+  словесного DoD) и перечисляет их явно в карточке; правило TDD —
+  `docs/process.md`, раздел «TDD для risky code».
 
 ## Трассировка и объём
 

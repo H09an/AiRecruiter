@@ -45,7 +45,8 @@ cp vacancies.db vacancies.db.bak
 Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".db")
 ```
 
-Проверить:
+Для risky code — test-first: тест из DoD пишется до кода (правило —
+`docs/process.md`, «TDD для risky code»). Проверить:
 
 - создание схемы с нуля;
 - миграцию старой схемы без потери строк;

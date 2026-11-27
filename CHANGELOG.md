@@ -41,6 +41,12 @@
   check»).
 
 ### Изменено
+- TDD для профиля risky code-задач: тест из DoD пишется первым
+  (red→green), крайние случаи планировщик выводит из контракта и
+  перечисляет в карточке; тестировщик проверяет покрытие edge-случаев и
+  test-first. Правило — `docs/process.md`, «TDD для risky code»
+  (запись в `docs/decisions.md`); уточнены скиллы `task-decomposition`,
+  `qa-verification`, `sqlite-migration`, `gigachat-contract`.
 - Чекпойнт владельца после планирования — по исключению: при проверенном
   DAG и отсутствии blocking-вопросов оркестратор продолжает без возврата;
   возврат — при blocking-вопросе, конфликте с roadmap/ADR, расширении
